@@ -1,0 +1,87 @@
+// monads
+negate = { "!" }
+negative = { "-" }
+
+// dyads
+pow = { "**" }
+equality = { "==" }
+add = { "+" }
+subtract = { "-" }
+multiply = { "*" }
+divide = { "/" }
+or = { "||" }
+and = { "&&" }
+gt = { ">" }
+lt = { "<" }
+gte = { ">=" }
+lte = { "<=" }
+
+// delimiters
+lparen = _{ "(" }
+rparen = _{ ")" }
+lbrace = _{ "{" }
+rbrace = _{ "}" }
+comma = _{ "," }
+colon = _{ ":" }
+semicolon = _{ ";" }
+assignment = _{ "=" }
+
+// keywords
+declaration = { "let" }
+
+// literals
+boolean = { "true" | "false" }
+float = { ASCII_DIGIT* ~ "." ~ ASCII_DIGIT+ }
+int = { ASCII_DIGIT+ }
+null = { "null" }
+
+// strings
+string = ${ "\"" ~ inner ~ "\"" }
+inner = _{ char* }
+char = _{
+    !("\"" | "\\") ~ ANY
+    | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+    | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+}
+
+// identifiers
+identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+/* ------------------------ */
+
+array = { "[" ~ (expr | term) ~ ("," ~ (expr | term))* ~ "]" }
+
+literal = _{ float | int | string | boolean | array | null }
+term = _{ literal | identifier | lparen ~ expr ~ rparen }
+terms = { term+ }
+
+// shorthand
+typed_var = { identifier ~ typed }
+named_var = _{ identifier ~ colon ~ expr }
+typed_args = { typed_var ~ (comma ~ typed_var)* }
+args = _{ (expr | identifier) ~ (comma ~ (expr | identifier))* }
+typed = { colon ~ (identifier) }
+
+// expressions
+monadic = { (negative | negate) ~ term }
+dyadic = { term ~ ((pow | equality | add | subtract | multiply | divide | or | and | gt | lt | gte | lte) ~ term)+ }
+expr = { struct_inst | var_decl | var_assign | monadic | dyadic | index | terms  }
+
+// block scopes
+block = { lbrace ~ thing* ~ rbrace }
+
+// variables
+var_decl = { declaration ~ identifier ~ typed? ~ assignment ~ expr }
+var_assign = { identifier ~ assignment ~ expr }
+
+// indexing
+index = { term ~ (("." ~ expr) | ("[" ~ expr ~ "]"))+ }
+
+// struct
+struct_inner = { lbrace ~ (named_var ~ (comma ~ named_var)*)* ~ rbrace }
+struct_inst = { identifier ~ lbrace ~ (named_var ~ (comma ~ named_var)*)* ~ rbrace }
+
+
+thing = _{  expr ~ semicolon }
+program = _{ SOI ~ thing+ ~ EOI? }
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }

@@ -1,0 +1,10 @@
+[package]
+name = "flang"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.93"
+enum-as-inner = "0.6.1"
+pest = "2.7.14"
+pest_derive = "2.7.14"
