@@ -10,12 +10,3 @@ macro_rules! map {
         }
     };
 }
-
-
-macro_rules! enf {
-    ($t: expr, $v: expr) => {
-        match $t {
-            $v(..)
-        }
-    };
-}

@@ -1,17 +1,14 @@
 use {
     flang::*,
+    parser::expr::{ContextualExpr, Expr},
     pest::Span,
-    runtime::{
-        expr::{ContextualExpr, Expr},
-        scope::Scope,
-        types::Value,
-    },
+    runtime::{scope::Scope, types::Value},
 };
 
 fn main() {
     let s = Span::new("", 0, 0).unwrap();
 
-    let mut result = Value::Undefined;
+    let mut result = Value::Undefined.anonymous();
     let scope = Scope::new();
 
     let nodes = vec![

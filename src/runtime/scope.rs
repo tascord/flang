@@ -5,7 +5,7 @@ use {
     },
     anyhow::{anyhow, bail},
     std::{
-        collections::HashMap, ops::Not, sync::{Arc, RwLock}
+        collections::HashMap, sync::{Arc, RwLock}
     },
 };
 
@@ -19,6 +19,7 @@ pub struct Scope {
 
 impl Scope {
     pub fn new() -> Self { Scope::default() }
+
 
     pub fn container(&self) -> Option<Arc<Value>> { self.for_var.clone() }
 

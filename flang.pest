@@ -31,8 +31,7 @@ declaration = { "let" }
 
 // literals
 boolean = { "true" | "false" }
-float = { ASCII_DIGIT* ~ "." ~ ASCII_DIGIT+ }
-int = { ASCII_DIGIT+ }
+number = { ASCII_DIGIT* ~ "." ~ ASCII_DIGIT+ }
 null = { "null" }
 
 // strings
@@ -49,9 +48,7 @@ identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
 /* ------------------------ */
 
-array = { "[" ~ (expr | term) ~ ("," ~ (expr | term))* ~ "]" }
-
-literal = _{ float | int | string | boolean | array | null }
+literal = _{ number | string | boolean | null }
 term = _{ literal | identifier | lparen ~ expr ~ rparen }
 terms = { term+ }
 
@@ -65,7 +62,12 @@ typed = { colon ~ (identifier) }
 // expressions
 monadic = { (negative | negate) ~ term }
 dyadic = { term ~ ((pow | equality | add | subtract | multiply | divide | or | and | gt | lt | gte | lte) ~ term)+ }
-expr = { struct_inst | var_decl | var_assign | monadic | dyadic | index | terms  }
+expr = { fn_call | struct_inst | var_decl | var_assign | monadic | dyadic | index | terms  }
+
+// functions
+fn_outline = { "fn" ~ identifier ~ lparen ~ typed_args? ~ rparen ~ typed? }
+fn_decl = { fn_outline ~ block }
+fn_call = { identifier ~ lparen ~ args? ~ rparen }
 
 // block scopes
 block = { lbrace ~ thing* ~ rbrace }
@@ -82,6 +84,6 @@ struct_inner = { lbrace ~ (named_var ~ (comma ~ named_var)*)* ~ rbrace }
 struct_inst = { identifier ~ lbrace ~ (named_var ~ (comma ~ named_var)*)* ~ rbrace }
 
 
-thing = _{  expr ~ semicolon }
+thing = _{  (expr ~ semicolon) | fn_decl }
 program = _{ SOI ~ thing+ ~ EOI? }
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }

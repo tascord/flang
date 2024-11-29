@@ -4,7 +4,7 @@ use {
         traits::{TraitDefinition, TraitInstance},
         types::{
             function::{BuiltinFunction, Function, FunctionOutline},
-            Value, ValueType,
+            ContextualValue, Value, ValueType,
         },
     },
     std::sync::{Arc, LazyLock},
@@ -15,7 +15,7 @@ pub static _TraitIndexable: LazyLock<TraitDefinition> = LazyLock::new(|| TraitDe
     name: "Indexable".to_string(),
     outlines: map! {
         "index".to_string() => FunctionOutline {
-            inputs: vec![ValueType::This, ValueType::Any],
+            inputs: vec![ ("self".to_string(), ValueType::This), ("idx".to_string(), ValueType::Any)],
             returns: Some(ValueType::Any),
         }
     },
@@ -31,9 +31,9 @@ pub fn default_impl(s: &Scope) {
         overrides: map! {
             "index".to_string() => BuiltinFunction {
                 outline: _TraitIndexable.outlines.get("index").unwrap().clone(),
-                handler: Arc::new(Box::new(|_: &Scope, i: Vec<Value>| {
+                handler: Arc::new(Box::new(|_: &Scope, i: Vec<ContextualValue>| {
                     let (v, i) = (i[0].as_string().unwrap(), i[1].as_number().unwrap());
-                     Some(v.chars().skip((*i as usize).saturating_sub(1)).map(|c| c.to_string()).next().into())
+                     Some(Value::from(v.chars().skip((*i as usize).saturating_sub(1)).map(|c| c.to_string()).next()).anonymous())
                 })),
             }.packaged()
         },

@@ -2,12 +2,21 @@ use {
     super::{scope::Scope, traits::TraitDefinition},
     enum_as_inner::EnumAsInner,
     function::{Function, FunctionOutline},
-    std::{collections::HashMap, fmt::Debug, hash::Hash, sync::Arc},
+    pest::Span,
+    std::{collections::HashMap, fmt::Debug, hash::Hash, ops::Deref, sync::Arc},
     structs::StructDefinition,
 };
 
 pub mod function;
 pub mod structs;
+
+#[derive(Clone, Debug)]
+pub struct ContextualValue(pub Value, pub Span<'static>);
+impl Deref for ContextualValue {
+    type Target = Value;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
 
 #[derive(Clone, EnumAsInner, Debug)]
 pub enum Value {
@@ -80,7 +89,13 @@ impl Into<ValueType> for Value {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+impl Value {
+    pub fn context(self, s: Span<'static>) -> ContextualValue { ContextualValue(self, s) }
+
+    pub fn anonymous(self) -> ContextualValue { ContextualValue(self, Span::new("", 0, 0).unwrap()) }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ValueType {
     Number,
     String,

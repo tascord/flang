@@ -9,7 +9,7 @@ use {
     std::{collections::HashMap, hash::Hash, sync::Arc},
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TraitDefinition {
     pub name: String,
     pub outlines: HashMap<String, FunctionOutline>,
