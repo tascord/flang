@@ -1,4 +1,4 @@
-use {super::op::{Dyadic, Mondaic}, pest::Span, std::ops::Deref};
+use {super::op::{Dyadic, Mondaic}, enum_as_inner::EnumAsInner, pest::Span, std::ops::Deref};
 
 #[derive(Debug, Clone)]
 pub struct ContextualExpr(pub Expr, pub Span<'static>);
@@ -10,7 +10,7 @@ impl Deref for ContextualExpr {
 
 pub type BCExpr = Box<ContextualExpr>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumAsInner)]
 pub enum Expr {
     Number(f64),
     Boolean(bool),
@@ -42,8 +42,6 @@ pub enum Expr {
         lhs: Box<ContextualExpr>,
         rhs: Box<ContextualExpr>,
     },
-
-    Print(BCExpr),
 }
 
 

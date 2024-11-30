@@ -3,7 +3,7 @@ use {
     expr::{ContextualExpr, Expr},
     itertools::Itertools,
     op::{get_dyadic, get_mondaic},
-    pest::iterators::Pair,
+    pest::{iterators::Pair, Parser},
     pest_derive::Parser,
 };
 
@@ -16,7 +16,23 @@ pub mod op;
 #[grammar = "./flang.pest"]
 struct Flanger;
 
-pub fn build_ast_from_expr(e: Pair<'static, Rule>) -> anyhow::Result<ContextualExpr> {
+pub fn parse(s: &'static str) -> anyhow::Result<Vec<ContextualExpr>> {
+    let pairs = Flanger::parse(Rule::program, &s)?;
+    
+    let mut ast: Vec<ContextualExpr> = Vec::new();
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::expr => {
+                ast.push(build_ast_from_expr(pair)?);
+            }
+            _ => {}
+        }
+    }
+
+    Ok(ast)
+}
+
+fn build_ast_from_expr(e: Pair<'static, Rule>) -> anyhow::Result<ContextualExpr> {
     match e.as_rule() {
         Rule::expr => build_ast_from_expr(e.clone().into_inner().next().unwrap()),
         Rule::terms => {

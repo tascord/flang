@@ -31,7 +31,7 @@ declaration = { "let" }
 
 // literals
 boolean = { "true" | "false" }
-number = { ASCII_DIGIT* ~ "." ~ ASCII_DIGIT+ }
+number = { ASCII_DIGIT+ | (ASCII_DIGIT* ~ "." ~ ASCII_DIGIT+) }
 null = { "null" }
 
 // strings

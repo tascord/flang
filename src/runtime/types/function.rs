@@ -1,5 +1,5 @@
 use {
-    super::{ContextualValue, ValueType},
+    super::{ContextualValue, Value, ValueType},
     crate::{
         parser::expr::ContextualExpr,
         runtime::{process, scope::Scope},
@@ -12,6 +12,7 @@ pub trait Function: Sync + Send + Debug {
     fn call(&self, scope: &Scope, inputs: Vec<ContextualValue>) -> anyhow::Result<Option<ContextualValue>>;
     fn outline(&self) -> FunctionOutline;
     fn packaged(self) -> Arc<Box<dyn Function>>;
+    fn wants_self(&self) -> bool;
 }
 
 #[derive(Clone, Debug)]
@@ -40,9 +41,17 @@ impl Function for BasicFunction {
         process(self.body.clone(), Some(&s))
     }
 
-    fn outline(&self) -> FunctionOutline { self.outline.clone() }
+    fn outline(&self) -> FunctionOutline {
+        self.outline.clone()
+    }
 
-    fn packaged(self) -> Arc<Box<dyn Function>> { Arc::new(Box::new(self) as Box<dyn Function>) }
+    fn packaged(self) -> Arc<Box<dyn Function>> {
+        Arc::new(Box::new(self) as Box<dyn Function>)
+    }
+
+    fn wants_self(&self) -> bool {
+        self.outline.inputs.first().map(|v| &v.0 == "self").unwrap_or(false)
+    }
 }
 
 #[derive(Clone)]
@@ -58,7 +67,9 @@ impl<T> Debug for BuiltinFunction<T>
 where
     T: Fn(&Scope, Vec<ContextualValue>) -> Option<ContextualValue> + Sync + Send + Clone + 'static,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "[Builtin Function]") }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[Builtin Function]")
+    }
 }
 
 impl<T> Function for BuiltinFunction<T>
@@ -66,12 +77,22 @@ where
     T: Fn(&Scope, Vec<ContextualValue>) -> Option<ContextualValue> + Sync + Send + Clone + 'static,
 {
     fn call(&self, scope: &Scope, inputs: Vec<ContextualValue>) -> anyhow::Result<Option<ContextualValue>> {
-        Ok((self.handler.clone())(scope, inputs))
+        let call_ret = (self.handler.clone())(scope, inputs);
+        println!("cret: {:?}", call_ret);
+        Ok(call_ret)
     }
 
-    fn outline(&self) -> FunctionOutline { todo!() }
+    fn outline(&self) -> FunctionOutline {
+        self.outline.clone()
+    }
 
-    fn packaged(self) -> Arc<Box<dyn Function>> { Arc::new(Box::new(self) as Box<dyn Function>) }
+    fn packaged(self) -> Arc<Box<dyn Function>> {
+        Arc::new(Box::new(self) as Box<dyn Function>)
+    }
+
+    fn wants_self(&self) -> bool {
+        self.outline.inputs.first().map(|v| &v.0 == "self").unwrap_or(false)
+    }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

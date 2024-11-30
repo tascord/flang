@@ -1,0 +1,3 @@
+let abc = 123;
+let abc_string = abc.to_string();
+print(abc_string);

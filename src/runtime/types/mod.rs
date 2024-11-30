@@ -3,7 +3,13 @@ use {
     enum_as_inner::EnumAsInner,
     function::{Function, FunctionOutline},
     pest::Span,
-    std::{collections::HashMap, fmt::Debug, hash::Hash, ops::Deref, sync::Arc},
+    std::{
+        collections::HashMap,
+        fmt::{Debug, Display},
+        hash::Hash,
+        ops::Deref,
+        sync::Arc,
+    },
     structs::StructDefinition,
 };
 
@@ -15,7 +21,9 @@ pub struct ContextualValue(pub Value, pub Span<'static>);
 impl Deref for ContextualValue {
     type Target = Value;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Clone, EnumAsInner, Debug)]
@@ -26,6 +34,19 @@ pub enum Value {
     StructInstance(StructDefinition, HashMap<String, Value>),
     Function(Arc<Box<dyn Function>>),
     Undefined,
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Number(v) => write!(f, "{}", v),
+            Value::String(v) => write!(f, "{}", v),
+            Value::Boolean(v) => write!(f, "{}", v),
+            Value::StructInstance(struct_definition, hash_map) => write!(f, "{} {:?}", struct_definition.name, hash_map),
+            Value::Function(arc) => write!(f, "{:?}", *arc),
+            Value::Undefined => write!(f, "[Undefined]"),
+        }
+    }
 }
 
 impl Hash for Value {
@@ -61,19 +82,27 @@ impl PartialEq for Value {
 impl Eq for Value {}
 
 impl From<f64> for Value {
-    fn from(value: f64) -> Self { Self::Number(value) }
+    fn from(value: f64) -> Self {
+        Self::Number(value)
+    }
 }
 
 impl From<String> for Value {
-    fn from(value: String) -> Self { Self::String(value) }
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
 }
 
 impl From<bool> for Value {
-    fn from(value: bool) -> Self { Self::Boolean(value) }
+    fn from(value: bool) -> Self {
+        Self::Boolean(value)
+    }
 }
 
 impl<T: Into<Value>> From<Option<T>> for Value {
-    fn from(value: Option<T>) -> Self { value.map(|v| v.into()).unwrap_or(Value::Undefined) }
+    fn from(value: Option<T>) -> Self {
+        value.map(|v| v.into()).unwrap_or(Value::Undefined)
+    }
 }
 
 impl Into<ValueType> for Value {
@@ -90,9 +119,13 @@ impl Into<ValueType> for Value {
 }
 
 impl Value {
-    pub fn context(self, s: Span<'static>) -> ContextualValue { ContextualValue(self, s) }
+    pub fn context(self, s: Span<'static>) -> ContextualValue {
+        ContextualValue(self, s)
+    }
 
-    pub fn anonymous(self) -> ContextualValue { ContextualValue(self, Span::new("", 0, 0).unwrap()) }
+    pub fn anonymous(self) -> ContextualValue {
+        ContextualValue(self, Span::new("", 0, 0).unwrap())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

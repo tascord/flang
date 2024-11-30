@@ -4,6 +4,7 @@ use super::Value;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct StructDefinition {
+    pub name: String,
     fields: HashMap<String, Value>,
 }
 

@@ -37,7 +37,7 @@ impl Hash for TraitDefinition {
 
 impl Eq for TraitDefinition {}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TraitInstance {
     pub def: Arc<TraitDefinition>,
     pub overrides: HashMap<String, Arc<Box<dyn Function>>>,
