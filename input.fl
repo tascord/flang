@@ -1,5 +1,1 @@
-let addition = 1 + 1;
-let concatination = 1.to_string() + 1.to_string();
-
-print(addition);
-print(concatination);
+print(print);

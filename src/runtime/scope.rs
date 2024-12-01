@@ -39,6 +39,9 @@ impl Scope {
             })
         }
 
+        // Copy over in-scope traits
+        c.traits = RwLock::new(self.traits.read().unwrap().clone());
+
         c
     }
 
@@ -64,6 +67,10 @@ impl Scope {
                 i.read().unwrap().clone().into_iter().filter(|i| i.restriction.matches(&v, self)).collect::<Vec<_>>()
             })
             .collect()
+    }
+
+    pub fn get_trait_for(&self, v: Value, n: &str) -> Option<TraitInstance> {
+        self.get_traits_for(v).into_iter().find(|t| t.def.name == n.to_string())
     }
 
     pub fn define_struct(&self, name: &str, def: StructDefinition) {

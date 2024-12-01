@@ -1,6 +1,6 @@
 use {
     crate::parser::{
-        expr::{self, ContextualExpr, Expr},
+        expr::{self, ContextualExpr},
         op::Dyadic,
     },
     _builtins::default_impl,

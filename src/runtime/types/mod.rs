@@ -128,7 +128,7 @@ impl Value {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum ValueType {
     Number,
     String,
@@ -141,11 +141,29 @@ pub enum ValueType {
     Implements(TraitDefinition),
 }
 
+impl Debug for ValueType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Number => write!(f, "Number"),
+            Self::String => write!(f, "String"),
+            Self::Boolean => write!(f, "Boolean"),
+            Self::StructInstance(_) => write!(f, "StructInstance"),
+            Self::Function(_) => write!(f, "Function"),
+            Self::Undefined => write!(f, "Undefined"),
+            Self::This => write!(f, "Self"),
+            Self::Any => write!(f, "Any"),
+            Self::Implements(_) => write!(f, "Implements"),
+        }
+    }
+}
+
 impl ValueType {
     pub fn matches(&self, v: &Value, s: &Scope) -> bool {
         match self {
             ValueType::Any => true,
-            ValueType::This => s.container().map(|c| matches!(*c.clone(), Value::Function(_))).unwrap_or_default(),
+            ValueType::This => {
+                s.container().map(|v| <Value as Into<ValueType>>::into((*v).clone()).matches(&v, s)).unwrap_or(false)
+            }
             ValueType::Implements(def) => s.implements(v, def),
             t => <Value as Into<ValueType>>::into(v.clone()) == t.clone(),
         }

@@ -15,30 +15,60 @@ pub trait Function: Sync + Send + Debug {
     fn wants_self(&self) -> bool;
 }
 
-#[derive(Clone, Debug)]
+pub fn declare(f: Arc<Box<dyn Function + 'static>>, s: &Scope, i: Vec<ContextualValue>) -> anyhow::Result<Scope> {
+    let s = s.child_for_var(Value::Function(f.clone()));
+    f.outline()
+        .inputs
+        .iter()
+        .zip(i)
+        .map(|((ident, ty), v)| -> anyhow::Result<()> {
+            if !ty.matches(&v.0, &s) {
+                bail!(
+                    "Mismatching types for fn args {:?} != {}",
+                    ValueType::from(v.0.into()),
+                    match ty {
+                        ValueType::This => format!(
+                            "Self[ {:?} ]",
+                            s.container()
+                                .map(|v| <Value as Into<ValueType>>::into((*v).clone()))
+                                .unwrap_or(ValueType::Undefined)
+                        ),
+                        ty => format!("{ty:?}"),
+                    }
+                );
+            }
+
+            s.declare(&ident, v.0);
+            Ok(())
+        })
+        .collect::<anyhow::Result<Vec<()>>>()?;
+
+    Ok(s)
+}
+
+#[derive(Clone)]
 pub struct BasicFunction {
     pub outline: FunctionOutline,
     pub body: Vec<ContextualExpr>,
 }
 
+impl Debug for BasicFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "[Function ({}) -> {}]",
+            self.outline.inputs.iter().map(|v| format!("{:?}", v.1)).collect::<Vec<_>>().join(", "),
+            match &self.outline.returns {
+                Some(ty) => format!("{:?}", ty),
+                None => "void".to_string(),
+            }
+        )
+    }
+}
+
 impl Function for BasicFunction {
     fn call(&self, scope: &Scope, inputs: Vec<ContextualValue>) -> anyhow::Result<Option<ContextualValue>> {
-        let s = scope.child();
-        self.outline
-            .inputs
-            .iter()
-            .zip(inputs)
-            .map(|((ident, ty), v)| -> anyhow::Result<()> {
-                if !ty.matches(&v.0, &s) {
-                    bail!("Mismatching types for fn args");
-                }
-
-                s.declare(&ident, v.0);
-                Ok(())
-            })
-            .collect::<anyhow::Result<Vec<()>>>()?;
-
-        process(self.body.clone(), Some(&s))
+        process(self.body.clone(), Some(&declare(self.clone().packaged(), scope, inputs)?))
     }
 
     fn outline(&self) -> FunctionOutline {
@@ -57,7 +87,7 @@ impl Function for BasicFunction {
 #[derive(Clone)]
 pub struct BuiltinFunction<T>
 where
-    T: Fn(&Scope, Vec<ContextualValue>) -> Option<ContextualValue> + Sync + Send + Clone + 'static,
+    T: Fn(&Scope) -> Option<ContextualValue> + Sync + Send + Clone + 'static,
 {
     pub outline: FunctionOutline,
     pub handler: Arc<Box<T>>,
@@ -65,19 +95,27 @@ where
 
 impl<T> Debug for BuiltinFunction<T>
 where
-    T: Fn(&Scope, Vec<ContextualValue>) -> Option<ContextualValue> + Sync + Send + Clone + 'static,
+    T: Fn(&Scope) -> Option<ContextualValue> + Sync + Send + Clone + 'static,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[Builtin Function]")
+        write!(
+            f,
+            "[Builtin Function ({}) -> {}]",
+            self.outline.inputs.iter().map(|v| format!("{:?}", v.1)).collect::<Vec<_>>().join(", "),
+            match &self.outline.returns {
+                Some(ty) => format!("{:?}", ty),
+                None => "void".to_string(),
+            }
+        )
     }
 }
 
 impl<T> Function for BuiltinFunction<T>
 where
-    T: Fn(&Scope, Vec<ContextualValue>) -> Option<ContextualValue> + Sync + Send + Clone + 'static,
+    T: Fn(&Scope) -> Option<ContextualValue> + Sync + Send + Clone + 'static,
 {
     fn call(&self, scope: &Scope, inputs: Vec<ContextualValue>) -> anyhow::Result<Option<ContextualValue>> {
-        Ok((self.handler.clone())(scope, inputs))
+        Ok((self.handler.clone())(&declare(self.clone().packaged(), scope, inputs)?))
     }
 
     fn outline(&self) -> FunctionOutline {
