@@ -1,3 +1,5 @@
-let abc = 123;
-let abc_string = abc.to_string();
-print(abc_string);
+let addition = 1 + 1;
+let concatination = 1.to_string() + 1.to_string();
+
+print(addition);
+print(concatination);

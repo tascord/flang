@@ -24,6 +24,19 @@ pub static _TraitIndexable: LazyLock<TraitDefinition> = LazyLock::new(|| TraitDe
 });
 
 #[allow(non_upper_case_globals)]
+pub static _Add: LazyLock<TraitDefinition> = LazyLock::new(|| TraitDefinition {
+    name: "Add".to_string(),
+    outlines: map! {
+        "add".to_string() => FunctionOutline {
+            inputs: vec![ ("left".to_string(), ValueType::This), ("right".to_string(), ValueType::This)],
+            returns: Some(ValueType::Any),
+        }
+    },
+    functions: map! {},
+    restriction: None,
+});
+
+#[allow(non_upper_case_globals)]
 pub static _TraitToString: LazyLock<TraitDefinition> = LazyLock::new(|| TraitDefinition {
     name: "ToString".to_string(),
     outlines: map! {
@@ -37,20 +50,6 @@ pub static _TraitToString: LazyLock<TraitDefinition> = LazyLock::new(|| TraitDef
 });
 
 pub fn default_impl(s: &Scope) {
-    s.declare(
-        "print",
-        Value::Function(
-            BuiltinFunction {
-                outline: FunctionOutline { inputs: vec![("value".to_string(), ValueType::Any)], returns: None },
-                handler: Arc::new(Box::new(|_: &Scope, i: Vec<ContextualValue>| {
-                    println!("Print -> {:?}", i);
-                    None
-                })),
-            }
-            .packaged(),
-        ),
-    );
-
     s.declare_trait(&_TraitIndexable);
     s.implement_trait(&_TraitIndexable.name, |def| TraitInstance {
         def,
@@ -76,7 +75,36 @@ pub fn default_impl(s: &Scope) {
                 outline: _TraitIndexable.outlines.get("index").unwrap().clone(),
                 handler: Arc::new(Box::new(|_: &Scope, i: Vec<ContextualValue>| {
                     let ret = Value::String(i[0].to_string()).anonymous();
-                    println!("ret: {:?}", ret);
+                    Some(ret)
+                })),
+            }.packaged()
+        },
+    })
+    .unwrap();
+
+    s.declare_trait(&_Add);
+    s.implement_trait(&_Add.name, |def| TraitInstance {
+        def,
+        restriction: Box::new(ValueType::String),
+        overrides: map! {
+            "add".to_string() => BuiltinFunction {
+                outline: _Add.outlines.get("add").unwrap().clone(),
+                handler: Arc::new(Box::new(|_: &Scope, i: Vec<ContextualValue>| {
+                    let ret = Value::String(format!("{}{}", i[0].as_string().unwrap(), i[1].as_string().unwrap())).anonymous();
+                    Some(ret)
+                })),
+            }.packaged()
+        },
+    })
+    .unwrap();
+    s.implement_trait(&_Add.name, |def| TraitInstance {
+        def,
+        restriction: Box::new(ValueType::Number),
+        overrides: map! {
+            "add".to_string() => BuiltinFunction {
+                outline: _Add.outlines.get("add").unwrap().clone(),
+                handler: Arc::new(Box::new(|_: &Scope, i: Vec<ContextualValue>| {
+                    let ret = Value::Number(i[0].as_number().unwrap() + i[1].as_number().unwrap()).anonymous();
                     Some(ret)
                 })),
             }.packaged()

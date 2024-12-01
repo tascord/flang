@@ -77,9 +77,7 @@ where
     T: Fn(&Scope, Vec<ContextualValue>) -> Option<ContextualValue> + Sync + Send + Clone + 'static,
 {
     fn call(&self, scope: &Scope, inputs: Vec<ContextualValue>) -> anyhow::Result<Option<ContextualValue>> {
-        let call_ret = (self.handler.clone())(scope, inputs);
-        println!("cret: {:?}", call_ret);
-        Ok(call_ret)
+        Ok((self.handler.clone())(scope, inputs))
     }
 
     fn outline(&self) -> FunctionOutline {

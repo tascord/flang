@@ -1,7 +1,10 @@
 use {
-    crate::parser::expr::{self, ContextualExpr},
-    _builtins::traits::default_impl,
-    anyhow::anyhow,
+    crate::parser::{
+        expr::{self, ContextualExpr, Expr},
+        op::Dyadic,
+    },
+    _builtins::default_impl,
+    anyhow::{anyhow, bail},
     itertools::Itertools,
     scope::Scope,
     types::{
@@ -42,7 +45,7 @@ pub fn step(node: ContextualExpr, s: &Scope) -> anyhow::Result<Option<Contextual
         expr::Expr::Ident(v) => s.get(&v).map(|v| (*v).clone().context(node.1)),
 
         expr::Expr::Declaration { ident, typed, expr } => {
-            let v = step(*expr, s)?.unwrap_or(Value::Undefined.anonymous());
+            let v = step(*expr, s)?.unwrap();
 
             if let Some(t) = typed {
                 let ty = ValueType::from_str(&t, s).ok_or(anyhow!("Unknown type {}.", t))?;
@@ -62,12 +65,15 @@ pub fn step(node: ContextualExpr, s: &Scope) -> anyhow::Result<Option<Contextual
         }
 
         expr::Expr::Index(target, idx) => {
-            let mut left = s.child_for_var(step(*target, s)?.unwrap().0);
-            for right in idx {
-                left = s.child_for_var(step(right.clone(), &left)?.ok_or(anyhow!("Index {:?} doesnt exist", right))?.0);
-            }
+            let mut scope = s.child_for_var(step(*target, s)?.unwrap().0);
+            let right =
+                idx.into_iter().fold(anyhow::Result::<ContextualValue>::Ok(Value::Undefined.anonymous()), |_, b| {
+                    let right = step(b.clone(), &scope)?.ok_or(anyhow!("Index {:?} doesnt exist", b))?;
+                    scope = s.child_for_var(right.0.clone());
+                    Ok(right)
+                })?;
 
-            None
+            Some(right)
         }
 
         expr::Expr::FunctionCall(ident, args) => {
@@ -85,13 +91,8 @@ pub fn step(node: ContextualExpr, s: &Scope) -> anyhow::Result<Option<Contextual
                 args.insert(0, <Value as Clone>::clone(&a).anonymous().clone());
             }
 
-            println!("calling {} with args {:?}", ident, args);
-
             let found_ret = v.call(s, args)?;
-            println!("found: {:?}", found_ret);
-            
             found_ret
-
         }
 
         expr::Expr::FunctionDeclaration { ident, args, return_type, body } => {
@@ -115,7 +116,29 @@ pub fn step(node: ContextualExpr, s: &Scope) -> anyhow::Result<Option<Contextual
         }
 
         expr::Expr::MondaicOp { verb, expr } => todo!(),
-        expr::Expr::DyadicOp { verb, lhs, rhs } => todo!(),
+
+        expr::Expr::DyadicOp { verb, lhs, rhs } => {
+            let left = step(*lhs, s)?.unwrap();
+            let right = step(*rhs, s)?.unwrap();
+
+            if !<Value as Into<ValueType>>::into(left.0.clone()).matches(&right, s) {
+                bail!("Can't perform dyadic operations on differing types.")
+            }
+
+            let trait_name = match verb {
+                Dyadic::Add => "Add",
+                _ => todo!(),
+            }
+            .to_string();
+
+            s.get_traits_for(left.0.clone())
+                .into_iter()
+                .find(|t| t.def.name == trait_name)
+                .unwrap()
+                .get_function(&trait_name.to_lowercase())
+                .unwrap()
+                .call(s, vec![left, right])?
+        }
 
         _ => todo!(),
     })

@@ -151,7 +151,7 @@ fn build_ast_from_expr(e: Pair<'static, Rule>) -> anyhow::Result<ContextualExpr>
 
 fn build_ast_from_term(t: Pair<'static, Rule>) -> anyhow::Result<ContextualExpr> {
     match t.as_rule() {
-        Rule::expr => build_ast_from_expr(t.clone()).map(|e| e.0.clone()),
+        Rule::expr | Rule::fn_call => build_ast_from_expr(t.clone()).map(|e| e.0.clone()),
         Rule::identifier => Ok(Expr::Ident(String::from(t.as_str()))),
 
         Rule::string => Ok(Expr::String(t.as_str()[1..t.as_str().len() - 1].to_string())),
@@ -162,6 +162,7 @@ fn build_ast_from_term(t: Pair<'static, Rule>) -> anyhow::Result<ContextualExpr>
             Ok(Expr::Number(t.as_str().trim().parse::<f64>().map_err(|er| anyhow!("Failed to parse number: {er:?}"))?))
         }
         Rule::null => Ok(Expr::Undefined),
+
         _ => {
             eprintln!("{:?} not yet implemented", t.as_rule());
             todo!()

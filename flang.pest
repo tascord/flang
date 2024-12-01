@@ -49,7 +49,9 @@ identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 /* ------------------------ */
 
 literal = _{ number | string | boolean | null }
-term = _{ literal | identifier | lparen ~ expr ~ rparen }
+
+term_excl = _{ fn_call | literal | identifier | lparen ~ expr ~ rparen }
+term = _{ index | term_excl }
 terms = { term+ }
 
 // shorthand
@@ -62,7 +64,7 @@ typed = { colon ~ (identifier) }
 // expressions
 monadic = { (negative | negate) ~ term }
 dyadic = { term ~ ((pow | equality | add | subtract | multiply | divide | or | and | gt | lt | gte | lte) ~ term)+ }
-expr = { fn_call | struct_inst | var_decl | var_assign | monadic | dyadic | index | terms  }
+expr = { struct_inst | var_decl | var_assign | monadic | dyadic | terms  }
 
 // functions
 fn_outline = { "fn" ~ identifier ~ lparen ~ typed_args? ~ rparen ~ typed? }
@@ -77,12 +79,11 @@ var_decl = { declaration ~ identifier ~ typed? ~ assignment ~ expr }
 var_assign = { identifier ~ assignment ~ expr }
 
 // indexing
-index = { term ~ (("." ~ expr) | ("[" ~ expr ~ "]"))+ }
+index = { term_excl ~ (("." ~ term) | ("[" ~ term ~ "]"))+ }
 
 // struct
 struct_inner = { lbrace ~ (named_var ~ (comma ~ named_var)*)* ~ rbrace }
 struct_inst = { identifier ~ lbrace ~ (named_var ~ (comma ~ named_var)*)* ~ rbrace }
-
 
 thing = _{  (expr ~ semicolon) | fn_decl }
 program = _{ SOI ~ thing+ ~ EOI? }
