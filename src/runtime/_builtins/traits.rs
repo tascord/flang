@@ -121,6 +121,7 @@ pub fn default_impl(s: &Scope) {
                         ),
                         Value::Function(arc) => format!("{:?}", (*arc).clone()).magenta().to_string(),
                         Value::Undefined => "null".dimmed().to_string(),
+                        Value::Export(name, ..) => format!("[Export {name}").dimmed().to_string()
                     };
 
                     Some(Value::String(v).anonymous())

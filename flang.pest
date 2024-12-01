@@ -64,11 +64,11 @@ typed = { colon ~ (identifier) }
 // expressions
 monadic = { (negative | negate) ~ term }
 dyadic = { term ~ ((pow | equality | add | subtract | multiply | divide | or | and | gt | lt | gte | lte) ~ term)+ }
-expr = { struct_inst | var_decl | var_assign | monadic | dyadic | terms  }
+expr = { struct_inst | fn_decl | var_decl | var_assign | monadic | dyadic | terms  }
 
 // functions
-fn_outline = { "fn" ~ identifier ~ lparen ~ typed_args? ~ rparen ~ typed? }
-fn_decl = { fn_outline ~ block }
+fn_outline = { lparen ~ typed_args? ~ rparen ~ typed? }
+fn_decl = { fn_outline ~ "=>" ~ block }
 fn_call = { identifier ~ lparen ~ args? ~ rparen }
 
 // block scopes

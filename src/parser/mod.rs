@@ -11,6 +11,7 @@ use {
 pub mod macros;
 pub mod expr;
 pub mod op;
+pub mod flat;
 
 #[derive(Parser)]
 #[grammar = "./flang.pest"]
