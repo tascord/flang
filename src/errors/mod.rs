@@ -16,5 +16,5 @@ pub struct Error {
 }
 
 pub fn get_source(s: Span) {
-    
+    s
 }

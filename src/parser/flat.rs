@@ -1,13 +1,28 @@
 use std::{
     collections::HashMap,
-    sync::{LazyLock, RwLock},
+    fs::File,
+    io::Read,
+    path::PathBuf,
+    sync::{Arc, LazyLock, RwLock},
 };
 
-pub static FLAT: LazyLock<Flat> = LazyLock::new(|| Flat::default());
+use anyhow::bail;
+
+use crate::runtime::scope::Scope;
+
+use super::parse;
+
+#[derive(Default)]
+pub struct FlatManager {
+    exports: HashMap<String, Arc<Scope>>,
+}
+
+pub static FLAT_INSTANCE: LazyLock<FlatManager> = LazyLock::new(|| FlatManager::default());
 
 #[derive(Default)]
 pub struct Flat {
     source: RwLock<String>,
+    exports: Arc<Scope>,
     file_bounds: RwLock<HashMap<String, (usize, usize)>>,
 }
 
@@ -29,5 +44,23 @@ impl Flat {
         } else {
             None
         }
+    }
+
+    pub fn process(p: PathBuf) -> anyhow::Result<()> {
+        if p.is_dir() {
+            if p.join("main.fl").exists() {
+                return Self::process(p.join("main.fl"));
+            }
+        }
+
+        if !p.exists() {
+            bail!("Source file {} does not exist", p.display());
+        }
+
+        let mut buf = String::new();
+        File::open(p).unwrap().read_to_string(&mut buf)?;
+        let tree = parse(buf.leak())?;
+
+        Ok(())
     }
 }

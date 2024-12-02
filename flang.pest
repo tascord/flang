@@ -85,6 +85,13 @@ index = { term_excl ~ (("." ~ term) | ("[" ~ term ~ "]"))+ }
 struct_inner = { lbrace ~ (named_var ~ (comma ~ named_var)*)* ~ rbrace }
 struct_inst = { identifier ~ lbrace ~ (named_var ~ (comma ~ named_var)*)* ~ rbrace }
 
-thing = _{  (expr ~ semicolon) | fn_decl }
+// return statement
+return = { "return" ~ expr ~ semicolon? }
+
+// externals
+export = { "export" ~ expr }
+uses = { "uses" ~ identifier }
+
+thing = _{  return | ((export | uses | expr) ~ semicolon)}
 program = _{ SOI ~ thing+ ~ EOI? }
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }

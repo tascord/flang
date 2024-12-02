@@ -34,7 +34,7 @@ pub enum Value {
     StructInstance(StructDefinition, HashMap<String, Value>),
     Function(Arc<Box<dyn Function>>),
     Undefined,
-    Export(String, Arc<Scope>),
+    External(String, Arc<Scope>),
 }
 
 impl Display for Value {
@@ -46,7 +46,7 @@ impl Display for Value {
             Value::StructInstance(struct_definition, hash_map) => write!(f, "{} {:?}", struct_definition.name, hash_map),
             Value::Function(arc) => write!(f, "{:?}", *arc),
             Value::Undefined => write!(f, "[Undefined]"),
-            Value::Export(name, ..) => write!(f, "[Export {name}]"),
+            Value::External(name, ..) => write!(f, "[Export {name}]"),
         }
     }
 }
@@ -64,7 +64,7 @@ impl Hash for Value {
             }
             Value::Function(arc) => Arc::as_ptr(arc).hash(state),
             Value::Undefined => {}
-            Value::Export(pkg, ..) => pkg.hash(state),
+            Value::External(pkg, ..) => pkg.hash(state),
         }
     }
 }
@@ -117,7 +117,7 @@ impl Into<ValueType> for Value {
             Value::StructInstance(def, ..) => ValueType::StructInstance(def),
             Value::Function(fun) => ValueType::Function(Box::new(fun.outline())),
             Value::Undefined => ValueType::Undefined,
-            Value::Export(name, ..) => ValueType::Export(name),
+            Value::External(name, ..) => ValueType::Export(name),
         }
     }
 }
@@ -158,7 +158,7 @@ impl Debug for ValueType {
             Self::This => write!(f, "Self"),
             Self::Any => write!(f, "Any"),
             Self::Implements(_) => write!(f, "Implements"),
-            Self::Export(v) => write!(f, "Export({v})")
+            Self::Export(v) => write!(f, "Export({v})"),
         }
     }
 }

@@ -42,6 +42,9 @@ pub enum Expr {
         lhs: Box<ContextualExpr>,
         rhs: Box<ContextualExpr>,
     },
+
+    Export(BCExpr),
+    Import(String)
 }
 
 
