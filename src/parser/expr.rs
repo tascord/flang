@@ -1,7 +1,12 @@
-use {super::op::{Dyadic, Mondaic}, enum_as_inner::EnumAsInner, pest::Span, std::ops::Deref};
+use {
+    super::op::{Dyadic, Mondaic},
+    crate::project::source::LinkedSpan,
+    enum_as_inner::EnumAsInner,
+    std::ops::Deref,
+};
 
 #[derive(Debug, Clone)]
-pub struct ContextualExpr(pub Expr, pub Span<'static>);
+pub struct ContextualExpr(pub Expr, pub LinkedSpan);
 impl Deref for ContextualExpr {
     type Target = Expr;
 
@@ -22,34 +27,20 @@ pub enum Expr {
     Index(BCExpr, Vec<ContextualExpr>),
 
     FunctionCall(String, Vec<ContextualExpr>),
-    FunctionDeclaration {
-        ident: String,
-        args: Vec<(String, String)>,
-        return_type: Option<String>,
-        body: Vec<ContextualExpr>,
-    },
+    FunctionDeclaration { args: Vec<(String, String)>, return_type: Option<String>, body: Vec<ContextualExpr> },
 
     Declaration { ident: String, typed: Option<String>, expr: BCExpr },
     Assignment { ident: String, expr: BCExpr },
 
-    MondaicOp {
-        verb: Mondaic,
-        expr: Box<ContextualExpr>,
-    },
+    MondaicOp { verb: Mondaic, expr: Box<ContextualExpr> },
 
-    DyadicOp {
-        verb: Dyadic,
-        lhs: Box<ContextualExpr>,
-        rhs: Box<ContextualExpr>,
-    },
+    DyadicOp { verb: Dyadic, lhs: Box<ContextualExpr>, rhs: Box<ContextualExpr> },
 
     Export(BCExpr),
-    Import(String)
+    Import(String),
+    Return(BCExpr),
 }
 
-
 impl Expr {
-    pub fn context(self, s: Span<'static>) -> ContextualExpr {
-        ContextualExpr(self, s)
-    }
+    pub fn context(self, s: LinkedSpan) -> ContextualExpr { ContextualExpr(self, s) }
 }

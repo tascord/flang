@@ -1,12 +1,9 @@
 use {
     flang::*,
-    project::{Package, SemverPackage},
+    project::Package,
     std::{
         env::{args, current_dir},
-        fs::{File, OpenOptions},
-        io::Read,
-        path::{Path, PathBuf},
-        process,
+        path::PathBuf,
     },
 };
 
@@ -18,17 +15,7 @@ fn main() -> anyhow::Result<()> {
         Package::from_folder(target.parent().unwrap().to_path_buf())?
     };
 
-    println!("{:?}", package);
-
-    let mut input = String::new();
-    OpenOptions::new()
-        .read(true)
-        .open(Path::new(&package.disk_path).join(package.main))?
-        .read_to_string(&mut input)
-        .unwrap();
-
-    let tree = parser::parse(input.leak()).unwrap();
-    let result = runtime::process(tree, None).unwrap();
+    let result = package.process()?;
     println!("Program returns -> {result:?}");
 
     Ok(())

@@ -1,17 +1,25 @@
 use {
-    crate::parser::expr::ContextualExpr,
+    crate::{
+        errors::ErroneousExt,
+        parser::{self, expr::ContextualExpr},
+        runtime::{self, types::ContextualValue},
+    },
     anyhow::{anyhow, bail},
     itertools::Itertools,
     serde::{Deserialize, Serialize},
     serde_json::Value,
+    source::SOURCES,
     std::{
         fmt::{Display, Write},
         fs::OpenOptions,
+        io::Read,
         path::{Path, PathBuf},
         str::FromStr,
-        sync::{LazyLock, OnceLock, RwLock},
+        sync::{OnceLock, RwLock},
     },
 };
+
+pub mod source;
 
 pub static PACKAGE: OnceLock<RwLock<(Package, Option<Package>)>> = OnceLock::new();
 
@@ -138,6 +146,21 @@ impl Package {
                 .map_err(|e| anyhow!("Failed parsing manifest for '{p}': {e:?}"))?),
         }
     }
+
+    pub fn process(&self) -> anyhow::Result<Option<ContextualValue>> {
+        process_file(Path::new(&self.disk_path).join(self.main.clone()))
+    }
 }
 
 pub fn pack() -> Package { PACKAGE.get().unwrap().read().unwrap().clone().0 }
+
+pub fn process_file(path: PathBuf) -> anyhow::Result<Option<ContextualValue>> {
+    let path = path.canonicalize().unwrap();
+
+    let mut input = String::new();
+    OpenOptions::new().read(true).open(path.clone())?.read_to_string(&mut input).unwrap();
+    SOURCES.add_source(path.display().to_string(), input);
+
+    let tree: Vec<ContextualExpr> = parser::parse(path.display().to_string()).unwrap();
+    Ok(runtime::process(tree, None).unwrappers())
+}

@@ -1,5 +1,6 @@
 use {
     super::{scope::Scope, traits::TraitDefinition},
+    crate::project::source::LinkedSpan,
     enum_as_inner::EnumAsInner,
     function::{Function, FunctionOutline},
     pest::Span,
@@ -17,13 +18,11 @@ pub mod function;
 pub mod structs;
 
 #[derive(Clone, Debug)]
-pub struct ContextualValue(pub Value, pub Span<'static>);
+pub struct ContextualValue(pub Value, pub LinkedSpan);
 impl Deref for ContextualValue {
     type Target = Value;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[derive(Clone, EnumAsInner, Debug)]
@@ -35,6 +34,7 @@ pub enum Value {
     Function(Arc<Box<dyn Function>>),
     Undefined,
     External(String, Arc<Scope>),
+    Return(Box<Value>),
 }
 
 impl Display for Value {
@@ -47,6 +47,7 @@ impl Display for Value {
             Value::Function(arc) => write!(f, "{:?}", *arc),
             Value::Undefined => write!(f, "[Undefined]"),
             Value::External(name, ..) => write!(f, "[Export {name}]"),
+            Value::Return(value) => std::fmt::Display::fmt(&*value, f),
         }
     }
 }
@@ -65,6 +66,7 @@ impl Hash for Value {
             Value::Function(arc) => Arc::as_ptr(arc).hash(state),
             Value::Undefined => {}
             Value::External(pkg, ..) => pkg.hash(state),
+            Value::Return(value) => std::hash::Hash::hash(&*value, state),
         }
     }
 }
@@ -85,27 +87,19 @@ impl PartialEq for Value {
 impl Eq for Value {}
 
 impl From<f64> for Value {
-    fn from(value: f64) -> Self {
-        Self::Number(value)
-    }
+    fn from(value: f64) -> Self { Self::Number(value) }
 }
 
 impl From<String> for Value {
-    fn from(value: String) -> Self {
-        Self::String(value)
-    }
+    fn from(value: String) -> Self { Self::String(value) }
 }
 
 impl From<bool> for Value {
-    fn from(value: bool) -> Self {
-        Self::Boolean(value)
-    }
+    fn from(value: bool) -> Self { Self::Boolean(value) }
 }
 
 impl<T: Into<Value>> From<Option<T>> for Value {
-    fn from(value: Option<T>) -> Self {
-        value.map(|v| v.into()).unwrap_or(Value::Undefined)
-    }
+    fn from(value: Option<T>) -> Self { value.map(|v| v.into()).unwrap_or(Value::Undefined) }
 }
 
 impl Into<ValueType> for Value {
@@ -118,17 +112,16 @@ impl Into<ValueType> for Value {
             Value::Function(fun) => ValueType::Function(Box::new(fun.outline())),
             Value::Undefined => ValueType::Undefined,
             Value::External(name, ..) => ValueType::Export(name),
+            Value::Return(value) => Into::<ValueType>::into(*value),
         }
     }
 }
 
 impl Value {
-    pub fn context(self, s: Span<'static>) -> ContextualValue {
-        ContextualValue(self, s)
-    }
+    pub fn context(self, s: LinkedSpan) -> ContextualValue { ContextualValue(self, s) }
 
     pub fn anonymous(self) -> ContextualValue {
-        ContextualValue(self, Span::new("", 0, 0).unwrap())
+        ContextualValue(self, LinkedSpan(Span::new("", 0, 0).unwrap(), String::new()))
     }
 }
 
@@ -177,8 +170,8 @@ impl ValueType {
 
     pub fn from_str(t: &str, s: &Scope) -> Option<ValueType> {
         match t {
-            "num" => Some(ValueType::Number),
-            "str" => Some(ValueType::String),
+            "number" => Some(ValueType::Number),
+            "string" => Some(ValueType::String),
             "bool" => Some(ValueType::Boolean),
             "null" => Some(ValueType::Undefined),
             "any" => Some(ValueType::Any),
@@ -190,4 +183,8 @@ impl ValueType {
             v => s.get_structdef(v).map(|v| ValueType::StructInstance((*v).clone())), // TODO: Function
         }
     }
+}
+
+impl Into<LinkedSpan> for ContextualValue {
+    fn into(self) -> LinkedSpan { self.1 }
 }

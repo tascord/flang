@@ -1,3 +1,6 @@
-let add_two_numbers = (a: number, b: number) => {
+export let add_two_numbers = (a: number, b: number) => {
     return a + b
 };
+
+let sum = add_two_numbers(1, 2);
+print(sum);

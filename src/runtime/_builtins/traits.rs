@@ -105,6 +105,10 @@ pub fn default_impl(s: &Scope) {
             "to_pretty".to_string() => BuiltinFunction {
                 outline: _TraitToPretty.outlines.get("to_pretty").unwrap().clone(),
                 handler: Arc::new(Box::new(|s: &Scope| {
+                    if let Some(sel) = s.get("self").unwrap().as_return() {
+                        s.declare("self", (**sel).clone());
+                    }
+
                     let v = match &*s.get("self").unwrap() {
                         Value::Number(v) => v.to_string().yellow().to_string(),
                         Value::Boolean(v) => v.to_string().green().to_string(),
@@ -121,7 +125,8 @@ pub fn default_impl(s: &Scope) {
                         ),
                         Value::Function(arc) => format!("{:?}", (*arc).clone()).magenta().to_string(),
                         Value::Undefined => "null".dimmed().to_string(),
-                        Value::External(name, ..) => format!("[Export {name}").dimmed().to_string()
+                        Value::External(name, ..) => format!("[Export {name}").dimmed().to_string(),
+                        Value::Return(value) => format!("[Return {}]", *value).dimmed().to_string(),
                     };
 
                     Some(Value::String(v).anonymous())

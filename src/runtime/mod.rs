@@ -1,10 +1,13 @@
 use {
-    crate::parser::{
-        expr::{self, ContextualExpr},
-        op::Dyadic,
+    crate::{
+        errors::Erroneous,
+        parser::{
+            expr::{self, ContextualExpr},
+            op::Dyadic,
+        },
     },
     _builtins::default_impl,
-    anyhow::{anyhow, bail},
+    anyhow::anyhow,
     itertools::Itertools,
     scope::Scope,
     types::{
@@ -18,7 +21,7 @@ pub mod scope;
 pub mod traits;
 pub mod types;
 
-pub fn process(tree: Vec<ContextualExpr>, s: Option<&Scope>) -> anyhow::Result<(Option<ContextualValue>)> {
+pub fn process(tree: Vec<ContextualExpr>, s: Option<&Scope>) -> crate::errors::Result<Option<ContextualValue>> {
     let mut result = Value::Undefined.anonymous();
 
     let binding = Scope::new();
@@ -34,21 +37,24 @@ pub fn process(tree: Vec<ContextualExpr>, s: Option<&Scope>) -> anyhow::Result<(
     Ok(Some(result))
 }
 
-pub fn step(node: ContextualExpr, s: &Scope) -> anyhow::Result<Option<ContextualValue>> {
+pub fn step(node: ContextualExpr, s: &Scope) -> Result<Option<ContextualValue>, crate::errors::Error> {
     Ok(match node.0 {
-        expr::Expr::Number(v) => Some(Value::from(v).context(node.1)),
-        expr::Expr::Boolean(v) => Some(Value::from(v).context(node.1)),
-        expr::Expr::String(v) => Some(Value::from(v).context(node.1)),
-        expr::Expr::Undefined => Some(Value::Undefined.context(node.1)),
+        expr::Expr::Number(v) => Some(Value::from(v).context(node.1.clone())),
+        expr::Expr::Boolean(v) => Some(Value::from(v).context(node.1.clone())),
+        expr::Expr::String(v) => Some(Value::from(v).context(node.1.clone())),
+        expr::Expr::Undefined => Some(Value::Undefined.context(node.1.clone())),
 
-        expr::Expr::Ident(v) => s.get(&v).map(|v| (*v).clone().context(node.1)),
+        expr::Expr::Ident(v) => s.get(&v).map(|v| (*v).clone().context(node.1.clone())),
 
         expr::Expr::Declaration { ident, typed, expr } => {
             let v = step(*expr, s)?.unwrap();
 
             if let Some(t) = typed {
-                let ty = ValueType::from_str(&t, s).ok_or(anyhow!("Unknown type {}.", t))?;
-                (ty.matches(&*v, s)).then_some(()).ok_or(anyhow!("Variable {} is not of type {}", ident, t))?;
+                let ty = ValueType::from_str(&t, s).ok_or(anyhow!("Unknown type {}.", t)).rt(node.1.clone())?;
+                (ty.matches(&*v, s))
+                    .then_some(())
+                    .ok_or(anyhow!("Variable {} is not of type {}", ident, t))
+                    .rt(node.1.clone())?;
             }
 
             s.declare(&ident, v.0);
@@ -58,19 +64,21 @@ pub fn step(node: ContextualExpr, s: &Scope) -> anyhow::Result<Option<Contextual
 
         expr::Expr::Assignment { ident, expr } => {
             let v = step(*expr, s)?.unwrap_or(Value::Undefined.anonymous());
-            s.assign(&ident, v.0)?;
+            s.assign(&ident, v.0).rt(node.1.clone())?;
 
             None
         }
 
         expr::Expr::Index(target, idx) => {
             let mut scope = s.child_for_var(step(*target, s)?.unwrap().0);
-            let right =
-                idx.into_iter().fold(anyhow::Result::<ContextualValue>::Ok(Value::Undefined.anonymous()), |_, b| {
+            let right = idx
+                .into_iter()
+                .fold(anyhow::Result::<ContextualValue>::Ok(Value::Undefined.anonymous()), |_, b| {
                     let right = step(b.clone(), &scope)?.ok_or(anyhow!("Index {:?} doesnt exist", b))?;
                     scope = s.child_for_var(right.0.clone());
                     Ok(right)
-                })?;
+                })
+                .rt(node.1.clone())?;
 
             Some(right)
         }
@@ -80,48 +88,54 @@ pub fn step(node: ContextualExpr, s: &Scope) -> anyhow::Result<Option<Contextual
                 .get(&ident)
                 .map(|v| <Value as Clone>::clone(&v).into_function().ok())
                 .flatten()
-                .ok_or(anyhow!("No function exists with the name {ident}"))?;
+                .ok_or(anyhow!("No function exists with the name {ident}"))
+                .rt(node.1.clone())?;
 
             let mut args: Vec<ContextualValue> =
                 args.iter().map(|v| step(v.clone(), s).map(|v| v.unwrap())).try_collect()?;
 
             if v.wants_self() {
-                let a = s.container().ok_or(anyhow!("Function taking parameter 'self' cannot be called statically"))?;
+                let a = s
+                    .container()
+                    .ok_or(anyhow!("Function taking parameter 'self' cannot be called statically"))
+                    .rt(node.1.clone())?;
                 args.insert(0, <Value as Clone>::clone(&a).anonymous().clone());
             }
 
-            let found_ret = v.call(s, args)?;
+            let found_ret = v.call(s, args).rt(node.1.clone())?;
             found_ret
         }
 
-        expr::Expr::FunctionDeclaration { ident, args, return_type, body } => {
+        expr::Expr::FunctionDeclaration { args, return_type, body } => {
             let f = BasicFunction {
                 outline: FunctionOutline {
                     inputs: args
                         .into_iter()
-                        .map(|(i, t)| ValueType::from_str(&t, s).ok_or(anyhow!("Unknown tyoe {t}")).map(|t| (i, t)))
+                        .map(|(i, t)| {
+                            ValueType::from_str(&t, s).ok_or(anyhow!("Unknown type {t}")).rt(node.1.clone()).map(|t| (i, t))
+                        })
                         .try_collect()?,
                     returns: match return_type {
-                        Some(ty) => Some(ValueType::from_str(&ty, s).ok_or(anyhow!("Unknown type {ty}"))?),
+                        Some(ty) => {
+                            Some(ValueType::from_str(&ty, s).ok_or(anyhow!("Unknown type {ty}")).rt(node.1.clone())?)
+                        }
                         None => None,
                     },
                 },
                 body,
             };
 
-            s.declare(&ident, Value::Function(f.packaged()));
-
-            None
+            Some(Value::Function(f.packaged()).context(node.1.clone()))
         }
 
-        expr::Expr::MondaicOp { verb, expr } => todo!(),
+        expr::Expr::MondaicOp { .. } => todo!(),
 
         expr::Expr::DyadicOp { verb, lhs, rhs } => {
             let left = step(*lhs, s)?.unwrap();
             let right = step(*rhs, s)?.unwrap();
 
             if !<Value as Into<ValueType>>::into(left.0.clone()).matches(&right, s) {
-                bail!("Can't perform dyadic operations on differing types.")
+                return Err(anyhow!("Can't perform dyadic operations on differing types.")).rt(node.1.clone());
             }
 
             let trait_name = match verb {
@@ -136,10 +150,16 @@ pub fn step(node: ContextualExpr, s: &Scope) -> anyhow::Result<Option<Contextual
                 .unwrap()
                 .get_function(&trait_name.to_lowercase())
                 .unwrap()
-                .call(s, vec![left, right])?
+                .call(s, vec![left, right])
+                .rt(node.1.clone())?
         }
 
-        expr::Expr::Export(expr) => {
+        expr::Expr::Return(expr) => {
+            let value = step(*expr, s)?.unwrap_or(Value::Undefined.anonymous());
+            Some(Value::Return(Box::new(value.0)).context(value.1))
+        }
+
+        expr::Expr::Export(..) => {
             todo!()
         }
 

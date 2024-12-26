@@ -1,9 +1,17 @@
-use std::{fmt::Display, process};
-
-use miette::{LabeledSpan, Severity};
+use {
+    crate::project::source::LinkedSpan,
+    miette::{Diagnostic, GraphicalReportHandler, LabeledSpan, MietteHandler, NamedSource, Severity},
+    std::{
+        fmt::{Debug, Display},
+        io::stdout,
+        process,
+    },
+};
 
 #[macro_use]
 pub mod macros;
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone, Copy)]
 pub enum FlangStage {
@@ -13,14 +21,10 @@ pub enum FlangStage {
 
 impl Display for FlangStage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                FlangStage::PreProcessing => "Pre-Processing",
-                FlangStage::Runtime => "Runtime",
-            }
-        )
+        write!(f, "{}", match self {
+            FlangStage::PreProcessing => "Pre-Processing",
+            FlangStage::Runtime => "Runtime",
+        })
     }
 }
 
@@ -32,6 +36,7 @@ pub struct Error {
     pub fatal: bool,
     pub code: Option<String>,
     pub bounds: (usize, usize),
+    pub source: Option<NamedSource<String>>,
 }
 
 impl Error {
@@ -72,12 +77,13 @@ impl miette::Diagnostic for Error {
         self.hint.clone().map(|c| Box::new(c) as Box<dyn std::fmt::Display>)
     }
 
-    fn url<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
-        None
-    }
+    fn url<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> { None }
 
     fn source_code(&self) -> Option<&dyn miette::SourceCode> {
-        None // TODO
+        match &self.source {
+            Some(s) => Some(s),
+            None => None,
+        }
     }
 
     fn labels(&self) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
@@ -86,11 +92,93 @@ impl miette::Diagnostic for Error {
         ))
     }
 
-    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
-        None
+    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> { None }
+
+    fn diagnostic_source(&self) -> Option<&dyn miette::Diagnostic> { None }
+}
+
+pub trait Erroneous<T, E> {
+    /// Runtime Error
+    fn rt(self, s: impl Into<LinkedSpan>) -> std::result::Result<T, Error>;
+
+    /// Runtime anonymous error
+    fn rta(self) -> std::result::Result<T, Error>;
+}
+
+pub trait ErroneousExt<T> {
+    fn hint(self, h: &str) -> std::result::Result<T, Error>;
+    fn fatal(self, f: bool) -> std::result::Result<T, Error>;
+    fn code(self, c: &str) -> std::result::Result<T, Error>;
+    fn unwrappers(self) -> T;
+}
+
+impl<T, E> Erroneous<T, E> for std::result::Result<T, E>
+where
+    E: Display,
+{
+    fn rt(self, s: impl Into<LinkedSpan>) -> std::result::Result<T, Error> {
+        let span: LinkedSpan = s.into();
+        match self {
+            Ok(v) => Ok(v),
+            Err(e) => Err(Error {
+                stage: FlangStage::Runtime,
+                error: e.to_string(),
+                hint: None,
+                fatal: false,
+                code: None,
+                bounds: (span.0.start(), span.0.end()),
+                source: Some(NamedSource::new(span.file_nameish(), span.file_contents().to_string())),
+            }),
+        }
     }
 
-    fn diagnostic_source(&self) -> Option<&dyn miette::Diagnostic> {
-        None
+    fn rta(self) -> std::result::Result<T, Error> {
+        match self {
+            Ok(v) => Ok(v),
+            Err(e) => Err(Error {
+                stage: FlangStage::Runtime,
+                error: e.to_string(),
+                hint: None,
+                fatal: false,
+                code: None,
+                bounds: (0, 0),
+                source: None,
+            }),
+        }
+    }
+}
+
+impl<T> ErroneousExt<T> for std::result::Result<T, Error> {
+    fn hint(self, h: &str) -> std::result::Result<T, Error> {
+        self.map_err(|mut e| {
+            e.hint = Some(h.to_string());
+            e
+        })
+    }
+
+    fn fatal(self, f: bool) -> std::result::Result<T, Error> {
+        self.map_err(|mut e| {
+            e.fatal = f;
+            e
+        })
+    }
+
+    fn code(self, c: &str) -> std::result::Result<T, Error> {
+        self.map_err(|mut e| {
+            e.code = Some(c.to_string());
+            e
+        })
+    }
+
+    fn unwrappers(self) -> T {
+        match self {
+            Ok(t) => t,
+            Err(e) => {
+                let mut out = String::new();
+                let _ = GraphicalReportHandler::default().render_report(&mut out, &e);
+                println!("{}", out);
+                process::exit(1)
+            }
+        }
     }
 }
