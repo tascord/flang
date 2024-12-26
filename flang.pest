@@ -89,8 +89,8 @@ struct_inst = { identifier ~ lbrace ~ (named_var ~ (comma ~ named_var)*)* ~ rbra
 return = { "return" ~ expr ~ semicolon? }
 
 // externals
-export = { "export" ~ expr }
-uses = { "uses" ~ identifier }
+export = { "export" ~ (var_decl | fn_decl) }
+uses = { "uses" ~ identifier ~ ("::" ~ identifier)*}
 
 thing = _{  return | ((export | uses | expr) ~ semicolon)}
 program = _{ SOI ~ thing+ ~ EOI? }

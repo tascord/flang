@@ -13,13 +13,12 @@ use {
     },
 };
 
+pub mod _builtins;
 pub mod scope;
 pub mod traits;
 pub mod types;
 
-pub mod _builtins;
-
-pub fn process(tree: Vec<ContextualExpr>, s: Option<&Scope>) -> anyhow::Result<Option<ContextualValue>> {
+pub fn process(tree: Vec<ContextualExpr>, s: Option<&Scope>) -> anyhow::Result<(Option<ContextualValue>)> {
     let mut result = Value::Undefined.anonymous();
 
     let binding = Scope::new();
@@ -138,6 +137,10 @@ pub fn step(node: ContextualExpr, s: &Scope) -> anyhow::Result<Option<Contextual
                 .get_function(&trait_name.to_lowercase())
                 .unwrap()
                 .call(s, vec![left, right])?
+        }
+
+        expr::Expr::Export(expr) => {
+            todo!()
         }
 
         _ => todo!(),

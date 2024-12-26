@@ -23,19 +23,15 @@ pub fn declare(f: Arc<Box<dyn Function + 'static>>, s: &Scope, i: Vec<Contextual
         .zip(i)
         .map(|((ident, ty), v)| -> anyhow::Result<()> {
             if !ty.matches(&v.0, &s) {
-                bail!(
-                    "Mismatching types for fn args {:?} != {}",
-                    ValueType::from(v.0.into()),
-                    match ty {
-                        ValueType::This => format!(
-                            "Self[ {:?} ]",
-                            s.container()
-                                .map(|v| <Value as Into<ValueType>>::into((*v).clone()))
-                                .unwrap_or(ValueType::Undefined)
-                        ),
-                        ty => format!("{ty:?}"),
-                    }
-                );
+                bail!("Mismatching types for fn args {:?} != {}", ValueType::from(v.0.into()), match ty {
+                    ValueType::This => format!(
+                        "Self[ {:?} ]",
+                        s.container()
+                            .map(|v| <Value as Into<ValueType>>::into((*v).clone()))
+                            .unwrap_or(ValueType::Undefined)
+                    ),
+                    ty => format!("{ty:?}"),
+                });
             }
 
             s.declare(&ident, v.0);
@@ -71,17 +67,11 @@ impl Function for BasicFunction {
         process(self.body.clone(), Some(&declare(self.clone().packaged(), scope, inputs)?))
     }
 
-    fn outline(&self) -> FunctionOutline {
-        self.outline.clone()
-    }
+    fn outline(&self) -> FunctionOutline { self.outline.clone() }
 
-    fn packaged(self) -> Arc<Box<dyn Function>> {
-        Arc::new(Box::new(self) as Box<dyn Function>)
-    }
+    fn packaged(self) -> Arc<Box<dyn Function>> { Arc::new(Box::new(self) as Box<dyn Function>) }
 
-    fn wants_self(&self) -> bool {
-        self.outline.inputs.first().map(|v| &v.0 == "self").unwrap_or(false)
-    }
+    fn wants_self(&self) -> bool { self.outline.inputs.first().map(|v| &v.0 == "self").unwrap_or(false) }
 }
 
 #[derive(Clone)]
@@ -118,17 +108,11 @@ where
         Ok((self.handler.clone())(&declare(self.clone().packaged(), scope, inputs)?))
     }
 
-    fn outline(&self) -> FunctionOutline {
-        self.outline.clone()
-    }
+    fn outline(&self) -> FunctionOutline { self.outline.clone() }
 
-    fn packaged(self) -> Arc<Box<dyn Function>> {
-        Arc::new(Box::new(self) as Box<dyn Function>)
-    }
+    fn packaged(self) -> Arc<Box<dyn Function>> { Arc::new(Box::new(self) as Box<dyn Function>) }
 
-    fn wants_self(&self) -> bool {
-        self.outline.inputs.first().map(|v| &v.0 == "self").unwrap_or(false)
-    }
+    fn wants_self(&self) -> bool { self.outline.inputs.first().map(|v| &v.0 == "self").unwrap_or(false) }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]

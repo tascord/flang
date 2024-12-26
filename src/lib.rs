@@ -4,3 +4,4 @@ pub mod macros;
 pub mod errors;
 pub mod runtime;
 pub mod parser;
+pub mod project;
