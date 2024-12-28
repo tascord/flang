@@ -1,8 +1,8 @@
 use {
     super::op::{Dyadic, Mondaic},
-    crate::project::source::LinkedSpan,
+    crate::{project::source::LinkedSpan, runtime::scope::Scope},
     enum_as_inner::EnumAsInner,
-    std::ops::Deref,
+    std::{ops::Deref, sync::Arc},
 };
 
 #[derive(Debug, Clone)]
@@ -37,7 +37,7 @@ pub enum Expr {
     DyadicOp { verb: Dyadic, lhs: Box<ContextualExpr>, rhs: Box<ContextualExpr> },
 
     Export(BCExpr),
-    Import(String),
+    Import(Arc<Scope>),
     Return(BCExpr),
 }
 

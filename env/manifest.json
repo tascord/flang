@@ -1,7 +1,7 @@
 {
     "name": "FlangTest",
     "version": "0.0.1",
-    "main": "main.fl",
+    "main": "src/main.fl",
     "dependencies": [
 
     ]

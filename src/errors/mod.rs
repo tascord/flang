@@ -1,11 +1,10 @@
 use {
-    crate::project::source::LinkedSpan,
-    miette::{Diagnostic, GraphicalReportHandler, LabeledSpan, MietteHandler, NamedSource, Severity},
-    std::{
-        fmt::{Debug, Display},
-        io::stdout,
-        process,
+    crate::{
+        parser::Rule,
+        project::source::{LinkedSpan, SOURCES},
     },
+    miette::{GraphicalReportHandler, LabeledSpan, NamedSource, Severity},
+    std::{fmt::Display, process},
 };
 
 #[macro_use]
@@ -15,8 +14,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone, Copy)]
 pub enum FlangStage {
-    PreProcessing,
-    Runtime,
+    PreProcessing = 0,
+    Runtime = 1,
 }
 
 impl Display for FlangStage {
@@ -179,6 +178,26 @@ impl<T> ErroneousExt<T> for std::result::Result<T, Error> {
                 println!("{}", out);
                 process::exit(1)
             }
+        }
+    }
+}
+
+impl From<pest::error::Error<Rule>> for Error {
+    fn from(value: pest::error::Error<Rule>) -> Self {
+        Error {
+            stage: FlangStage::PreProcessing,
+            error: value.variant.to_string(),
+            hint: None,
+            fatal: true,
+            code: None,
+            bounds: match value.location {
+                pest::error::InputLocation::Pos(p) => (p, p),
+                pest::error::InputLocation::Span(p) => p,
+            },
+            source: Some(NamedSource::new(
+                value.path().unwrap_or_default(),
+                SOURCES.get_source(value.path().unwrap_or_default().to_owned()).unwrap_or_default().to_string(),
+            )),
         }
     }
 }

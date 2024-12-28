@@ -15,7 +15,7 @@ macro_rules! ident {
     ($pair:expr) => {
         match format!("{:?}", $pair.as_rule()) == "identifier".to_string() {
             true => Ok($pair.as_str().to_string()),
-            false => Err(anyhow!("Failed to get  ident")),
+            false => Err(anyhow!("Failed to get ident")),
         }
     };
 }

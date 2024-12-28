@@ -1,9 +1,7 @@
 use {
     pest::{iterators::Pair, RuleType, Span},
     std::{
-        collections::BTreeMap,
-        path::Path,
-        sync::{Arc, LazyLock, RwLock},
+        collections::BTreeMap, fmt::Debug, path::Path, sync::{Arc, LazyLock, RwLock}
     },
 };
 
@@ -11,8 +9,14 @@ pub static SOURCES: LazyLock<SourceMap> = LazyLock::new(|| SourceMap(Default::de
 
 pub struct SourceMap(RwLock<BTreeMap<String, Arc<String>>>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct LinkedSpan(pub Span<'static>, pub String);
+
+impl Debug for LinkedSpan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("LinkedSpan").field(&self.1).finish()
+    }
+}
 
 impl LinkedSpan {
     pub fn span(&self) -> Span<'static> { self.0.clone() }

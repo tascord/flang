@@ -69,7 +69,7 @@ impl Debug for BasicFunction {
 
 impl Function for BasicFunction {
     fn call(&self, scope: &Scope, inputs: Vec<ContextualValue>) -> crate::errors::Result<Option<ContextualValue>> {
-        process(self.body.clone(), Some(&declare(self.clone().packaged(), scope, inputs)?))
+        process(self.body.clone(), Some(&declare(self.clone().packaged(), scope, inputs)?), None)
     }
 
     fn outline(&self) -> FunctionOutline {

@@ -16,12 +16,11 @@ pub struct Scope {
     variables: RwLock<HashMap<String, Arc<Value>>>,
     structs: RwLock<HashMap<String, Arc<StructDefinition>>>,
     for_var: Option<Arc<Value>>,
+    export: RwLock<Option<Arc<Scope>>>,
 }
 
 impl Scope {
-    pub fn new() -> Self {
-        Scope::default()
-    }
+    pub fn new() -> Self { Scope::default() }
 
     pub fn child_for_var(&self, v: Value) -> Self {
         let mut c = Scope::new();
@@ -45,9 +44,7 @@ impl Scope {
         c
     }
 
-    pub fn container(&self) -> Option<Arc<Value>> {
-        self.for_var.clone()
-    }
+    pub fn container(&self) -> Option<Arc<Value>> { self.for_var.clone() }
 
     pub fn child(&self) -> Self {
         let mut c = Scope::new();
@@ -74,6 +71,7 @@ impl Scope {
     }
 
     pub fn define_struct(&self, name: &str, def: StructDefinition) {
+        self.export.read().unwrap().clone().inspect(|e| e.define_struct(name, def.clone()));
         self.structs.write().unwrap().insert(name.to_string(), Arc::new(def));
     }
 
@@ -91,10 +89,12 @@ impl Scope {
     }
 
     pub fn declare_trait(&self, t: &TraitDefinition) {
+        self.export.read().unwrap().clone().inspect(|e| e.declare_trait(t));
         self.traits.write().unwrap().insert(t.clone().into(), Default::default());
     }
 
-    pub fn implement_trait(&self, n: &str, f: impl Fn(Arc<TraitDefinition>) -> TraitInstance) -> anyhow::Result<()> {
+    pub fn implement_trait(&self, n: &str, f: impl Fn(Arc<TraitDefinition>) -> TraitInstance + Clone) -> anyhow::Result<()> {
+        self.export.read().unwrap().clone().inspect(|e| e.implement_trait(n, f.clone()).unwrap());
         let binding = (*self.traits.read().unwrap()).clone();
         let def = binding
             .keys()
@@ -113,6 +113,7 @@ impl Scope {
     }
 
     pub fn declare(&self, var: &str, value: Value) {
+        self.export.read().unwrap().clone().inspect(|e| e.declare(var, value.clone()));
         self.variables.write().unwrap().insert(var.to_string(), value.into());
     }
 
@@ -133,7 +134,15 @@ impl Scope {
         Ok(())
     }
 
-    pub fn get(&self, var: &str) -> Option<Arc<Value>> {
-        self.variables.read().unwrap().get(var).cloned()
+    pub fn get(&self, var: &str) -> Option<Arc<Value>> { self.variables.read().unwrap().get(var).cloned() }
+
+    pub fn use_export(&self, s: Arc<Scope>) { self.export.write().unwrap().replace(s); }
+
+    pub fn clear_export(&self) { self.export.write().unwrap().take(); }
+
+    pub fn absorb(&self, s: Arc<Scope>) {
+        self.structs.write().unwrap().extend(s.structs.read().unwrap().clone().into_iter());
+        self.variables.write().unwrap().extend(s.variables.read().unwrap().clone().into_iter());
+        self.traits.write().unwrap().extend(s.traits.read().unwrap().clone().into_iter());
     }
 }

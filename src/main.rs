@@ -1,6 +1,6 @@
 use {
     flang::*,
-    project::Package,
+    project::{pack, Package, PACKAGE},
     std::{
         env::{args, current_dir},
         path::PathBuf,
@@ -15,8 +15,7 @@ fn main() -> anyhow::Result<()> {
         Package::from_folder(target.parent().unwrap().to_path_buf())?
     };
 
-    let result = package.process()?;
-    println!("Program returns -> {result:?}");
-
+    PACKAGE.set((package, None).into()).unwrap();
+    pack().process()?;
     Ok(())
 }
