@@ -175,8 +175,13 @@ pub fn step(node: ContextualExpr, s: &Scope, p: &Option<PathBuf>) -> Result<Opti
             Some(value)
         }
 
-        expr::Expr::Import(scope) => {
-            s.absorb(scope);
+        expr::Expr::Import(scope, imports) => {
+            if imports.len() == 0 {
+                s.absorb(scope);
+            } else {
+                imports.into_iter().for_each(|i| s.absorb_named(scope.clone(), i));
+            }
+
             None
         }
 

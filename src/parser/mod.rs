@@ -173,7 +173,12 @@ fn build_ast_from_expr(e: Pair<'static, Rule>, source_path: String) -> crate::er
             }
 
             Rule::uses => {
-                let mut package = e.clone().into_inner().map(|seg| seg.as_str().to_string()).collect::<Vec<_>>();
+
+                let inner = e.clone().into_inner();
+                let imports = inner.clone().take(inner.clone().count() - 1).map(|i| i.as_str().to_string()).collect::<Vec<_>>();
+                let mut package = inner.last().unwrap().into_inner().map(|seg| seg.as_str().to_string()).collect::<Vec<_>>();
+
+
                 if *package.get(0).unwrap() == "self".to_string() {
                     package[0] = Package::from_file(source_path.clone().into()).unwrap().name;
                 }
@@ -184,7 +189,7 @@ fn build_ast_from_expr(e: Pair<'static, Rule>, source_path: String) -> crate::er
                     .process()
                     .rt(e.clone().source(source_path.clone()))?;
 
-                Expr::Import(EXPORTS.read().unwrap().get(&package.join("::")).unwrap().clone())
+                Expr::Import(EXPORTS.read().unwrap().get(&package.join("::")).unwrap().clone(), imports)
             }
 
             _ => {

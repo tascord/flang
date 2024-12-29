@@ -145,4 +145,10 @@ impl Scope {
         self.variables.write().unwrap().extend(s.variables.read().unwrap().clone().into_iter());
         self.traits.write().unwrap().extend(s.traits.read().unwrap().clone().into_iter());
     }
+
+    pub fn absorb_named(&self, s: Arc<Scope>, name: String) {
+        self.structs.write().unwrap().extend(s.structs.read().unwrap().clone().into_iter().filter(|s| s.0 == name));
+        self.variables.write().unwrap().extend(s.variables.read().unwrap().clone().into_iter().filter(|v| v.0 == name));
+        self.traits.write().unwrap().extend(s.traits.read().unwrap().clone().into_iter().filter(|t| t.0.name == name));
+    }
 }

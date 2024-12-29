@@ -1,4 +1,4 @@
-uses self::math;
+uses { add_two_numbers } from self::math;
 
 let sum = add_two_numbers(1, 2);
 print(sum);

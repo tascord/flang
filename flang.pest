@@ -90,7 +90,8 @@ return = { "return" ~ expr ~ semicolon? }
 
 // externals
 export = { "export" ~ var_decl }
-uses = { "uses" ~ identifier ~ ("::" ~ identifier)*}
+uses = { "uses" ~ ((identifier | "*") | ("{" ~ identifier ~ (comma ~ identifier)* ~ "}")) ~ "from" ~ package}
+package = { identifier ~ ("::" ~ identifier)* }
 
 thing = _{  return | ((export | uses | expr) ~ semicolon)}
 program = _{ SOI ~ thing+ ~ EOI? }

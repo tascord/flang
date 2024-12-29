@@ -37,7 +37,7 @@ pub enum Expr {
     DyadicOp { verb: Dyadic, lhs: Box<ContextualExpr>, rhs: Box<ContextualExpr> },
 
     Export(BCExpr),
-    Import(Arc<Scope>),
+    Import(Arc<Scope>, Vec<String>),
     Return(BCExpr),
 }
 
