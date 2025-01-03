@@ -1,7 +1,10 @@
 use {
     pest::{iterators::Pair, RuleType, Span},
     std::{
-        collections::BTreeMap, fmt::Debug, path::Path, sync::{Arc, LazyLock, RwLock}
+        collections::BTreeMap,
+        fmt::Debug,
+        path::Path,
+        sync::{Arc, LazyLock, RwLock},
     },
 };
 

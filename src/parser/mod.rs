@@ -23,7 +23,7 @@ pub mod op;
 
 #[derive(Parser)]
 #[grammar = "./flang.pest"]
-struct Flanger;
+pub struct Flanger;
 
 pub fn parse(p: String) -> crate::errors::Result<Vec<ContextualExpr>> {
     let s = SOURCES.get_source(p.to_string()).unwrap();
@@ -41,6 +41,7 @@ pub fn parse(p: String) -> crate::errors::Result<Vec<ContextualExpr>> {
     unsafe { std::alloc::dealloc(i.as_ptr().cast_mut(), Layout::for_value(i)) };
     Ok(ast)
 }
+
 
 fn build_ast_from_expr(e: Pair<'static, Rule>, source_path: String) -> crate::errors::Result<ContextualExpr> {
     Ok::<ContextualExpr, crate::errors::Error>(

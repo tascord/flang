@@ -8,7 +8,8 @@ use {
 };
 
 fn main() -> anyhow::Result<()> {
-    let target = PathBuf::from(args().skip(1).next().unwrap_or(current_dir().unwrap().display().to_string()));
+    let target =
+        PathBuf::from(args().skip(1).find(|a| !a.starts_with("--")).unwrap_or(current_dir().unwrap().display().to_string()));
     let package = if target.is_dir() {
         Package::from_folder(target)?
     } else {
@@ -16,6 +17,10 @@ fn main() -> anyhow::Result<()> {
     };
 
     PACKAGE.set((package, None).into()).unwrap();
+    process()
+}
+
+fn process() -> anyhow::Result<()> {
     pack().process()?;
     Ok(())
 }

@@ -237,6 +237,25 @@ impl Package {
         tree.push(Path::new(&path).file_stem().unwrap().to_string_lossy().to_string());
         Ok(tree.join("::"))
     }
+
+    pub fn snoop(&self, path: Option<PathBuf>) {
+        let path = path.unwrap_or(Path::new(&self.disk_path).to_path_buf());
+        if let Ok(dir) = path.read_dir() {
+            for entry in dir {
+                if let Ok(entry) = entry {
+                    if entry.path().is_dir() && !entry.file_name().to_string_lossy().to_string().starts_with(".") {
+                        self.snoop(Some(entry.path()));
+                    } else {
+                        let mut input = String::new();
+                        if let Ok(mut file) = OpenOptions::new().read(true).open(entry.path().clone()) {
+                            file.read_to_string(&mut input).unwrap();
+                            SOURCES.add_source(entry.path().display().to_string(), input);
+                        }
+                    }
+                }
+            }
+        };
+    }
 }
 
 pub fn pack() -> Package { PACKAGE.get().unwrap().read().unwrap().clone().0 }

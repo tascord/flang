@@ -1,0 +1,72 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "flang",
+  "patterns": [
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#booleans" },
+    { "include": "#package" },
+    { "include": "#functions" },
+    { "include": "#id" }
+  ],
+  "repository": {
+    "id": {
+      "patterns": [
+        {
+          "name": "variable",
+          "match": "(\\w|_)(\\w|\\d|_)*"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.flang",
+          "match": "\\b(if|while|for|return|uses|from)\\b"
+        },
+        {
+          "name": "storage.type",
+          "match": "\\b(let|export)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.flang",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.flang",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.flang",
+          "match": "(\\d(?:\\.\\d)?)"
+        }
+      ]
+    },
+    "booleans": {
+      "patterns": [
+        { "name": "constant.language.flang", "match": "\\b(true)\\b" },
+        { "name": "constant.language.flang", "match": "\\b(false)\\b" }
+      ]
+    },
+    "package": {
+      "patterns": [{ "name": "variable", "match": "\\b((#id::)*#id)\\b" }]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function",
+          "match": "((\\w|_)(\\w|\\d|_)*)\\("
+        }
+      ]
+    }
+  },
+  "scopeName": "source.fl"
+}

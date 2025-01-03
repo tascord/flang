@@ -1,3 +1,5 @@
 export let add_two_numbers = (a: number, b: number) => {
     return a + b
 };
+
+export let my_favourite_number = 123;

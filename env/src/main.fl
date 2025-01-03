@@ -1,4 +1,1 @@
-uses { add_two_numbers } from self::math;
-
-let sum = add_two_numbers(1, 2);
-print(sum);
+uses { add_two_numbers, my_favourite_number } from self::math;
