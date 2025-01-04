@@ -1,8 +1,7 @@
 use {
     crate::{
         errors::ErroneousExt,
-        parser::{self, expr::ContextualExpr},
-        runtime::{self, scope::Scope, types::ContextualValue},
+        runtime::{self, scope::Scope, types::ContextualValue}, sitter::{self, expr::ContextualExpr},
     },
     anyhow::{anyhow, bail, ensure},
     itertools::Itertools,
@@ -28,9 +27,13 @@ pub static EXPORTS: LazyLock<RwLock<HashMap<String, Arc<Scope>>>> = LazyLock::ne
 #[derive(Clone, Hash, Debug)]
 pub struct SemverPackage(String, Semver, SemverMode);
 impl SemverPackage {
-    pub fn name(&self) -> String { self.0.clone() }
+    pub fn name(&self) -> String {
+        self.0.clone()
+    }
 
-    pub fn semver(&self) -> (Semver, SemverMode) { (self.1.clone(), self.2.clone()) }
+    pub fn semver(&self) -> (Semver, SemverMode) {
+        (self.1.clone(), self.2.clone())
+    }
 }
 
 #[derive(Clone, Debug, Hash)]
@@ -258,7 +261,9 @@ impl Package {
     }
 }
 
-pub fn pack() -> Package { PACKAGE.get().unwrap().read().unwrap().clone().0 }
+pub fn pack() -> Package {
+    PACKAGE.get().unwrap().read().unwrap().clone().0
+}
 pub fn export(path: String) -> Arc<Scope> {
     let package = Package::from_file(PathBuf::from(path.clone())).unwrap().child(path).unwrap();
     let ex = EXPORTS.read().unwrap().get(&package).unwrap_or(&Arc::new(Scope::new())).clone();
@@ -272,7 +277,10 @@ pub fn process_file(path: PathBuf) -> anyhow::Result<Option<ContextualValue>> {
     let mut input = String::new();
     OpenOptions::new().read(true).open(path.clone())?.read_to_string(&mut input).unwrap();
     SOURCES.add_source(path.display().to_string(), input);
+    sitter::parse(path.display().to_string());
 
-    let tree: Vec<ContextualExpr> = parser::parse(path.display().to_string()).unwrappers();
-    Ok(runtime::process(tree, None, Some(path)).unwrappers())
+    // let tree: Vec<ContextualExpr> = pest::parse(path.display().to_string()).unwrappers();
+    // Ok(runtime::process(tree, None, Some(path)).unwrappers())
+
+    todo!()
 }

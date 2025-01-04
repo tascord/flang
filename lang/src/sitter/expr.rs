@@ -1,12 +1,12 @@
 use {
     super::op::{Dyadic, Mondaic},
-    crate::{project::source::LinkedSpan, runtime::scope::Scope},
+    crate::{runtime::scope::Scope, sitter::Span},
     enum_as_inner::EnumAsInner,
     std::{ops::Deref, sync::Arc},
 };
 
 #[derive(Debug, Clone)]
-pub struct ContextualExpr(pub Expr, pub LinkedSpan);
+pub struct ContextualExpr(pub Expr, pub Span);
 impl Deref for ContextualExpr {
     type Target = Expr;
 
@@ -42,5 +42,5 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn context(self, s: LinkedSpan) -> ContextualExpr { ContextualExpr(self, s) }
+    pub fn context(self, s: Span) -> ContextualExpr { ContextualExpr(self, s) }
 }

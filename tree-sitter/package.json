@@ -1,0 +1,8 @@
+{
+    "dependencies": {
+        "tree-sitter-cli": "^0.24.6"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.5"
+    }
+}

@@ -1,8 +1,5 @@
 use {
-    crate::{
-        parser::Rule,
-        project::source::{LinkedSpan, SOURCES},
-    },
+    crate::{project::source::SOURCES, sitter::Span},
     miette::{GraphicalReportHandler, LabeledSpan, NamedSource, Severity},
     std::{fmt::Display, process},
 };
@@ -20,10 +17,14 @@ pub enum FlangStage {
 
 impl Display for FlangStage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            FlangStage::PreProcessing => "Pre-Processing",
-            FlangStage::Runtime => "Runtime",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                FlangStage::PreProcessing => "Pre-Processing",
+                FlangStage::Runtime => "Runtime",
+            }
+        )
     }
 }
 
@@ -76,7 +77,9 @@ impl miette::Diagnostic for Error {
         self.hint.clone().map(|c| Box::new(c) as Box<dyn std::fmt::Display>)
     }
 
-    fn url<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> { None }
+    fn url<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+        None
+    }
 
     fn source_code(&self) -> Option<&dyn miette::SourceCode> {
         match &self.source {
@@ -91,14 +94,18 @@ impl miette::Diagnostic for Error {
         ))
     }
 
-    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> { None }
+    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>> {
+        None
+    }
 
-    fn diagnostic_source(&self) -> Option<&dyn miette::Diagnostic> { None }
+    fn diagnostic_source(&self) -> Option<&dyn miette::Diagnostic> {
+        None
+    }
 }
 
 pub trait Erroneous<T, E> {
     /// Runtime Error
-    fn rt(self, s: impl Into<LinkedSpan>) -> std::result::Result<T, Error>;
+    fn rt(self, s: impl Into<Span>) -> std::result::Result<T, Error>;
 
     /// Runtime anonymous error
     fn rta(self) -> std::result::Result<T, Error>;
@@ -115,8 +122,8 @@ impl<T, E> Erroneous<T, E> for std::result::Result<T, E>
 where
     E: Display,
 {
-    fn rt(self, s: impl Into<LinkedSpan>) -> std::result::Result<T, Error> {
-        let span: LinkedSpan = s.into();
+    fn rt(self, s: impl Into<Span>) -> std::result::Result<T, Error> {
+        let span: Span = s.into();
         match self {
             Ok(v) => Ok(v),
             Err(e) => Err(Error {
@@ -125,8 +132,11 @@ where
                 hint: None,
                 fatal: false,
                 code: None,
-                bounds: (span.0.start(), span.0.end()),
-                source: Some(NamedSource::new(span.file_nameish(), span.file_contents().to_string())),
+                bounds: span.byte_bounds,
+                source: Some(NamedSource::new(
+                    span.file_nameish(),
+                    SOURCES.get_source(span.source_file).unwrap().to_string(),
+                )),
             }),
         }
     }
@@ -178,26 +188,6 @@ impl<T> ErroneousExt<T> for std::result::Result<T, Error> {
                 println!("{}", out);
                 process::exit(1)
             }
-        }
-    }
-}
-
-impl From<pest::error::Error<Rule>> for Error {
-    fn from(value: pest::error::Error<Rule>) -> Self {
-        Error {
-            stage: FlangStage::PreProcessing,
-            error: value.variant.to_string(),
-            hint: None,
-            fatal: true,
-            code: None,
-            bounds: match value.location {
-                pest::error::InputLocation::Pos(p) => (p, p),
-                pest::error::InputLocation::Span(p) => p,
-            },
-            source: Some(NamedSource::new(
-                value.path().unwrap_or_default(),
-                SOURCES.get_source(value.path().unwrap_or_default().to_owned()).unwrap_or_default().to_string(),
-            )),
         }
     }
 }

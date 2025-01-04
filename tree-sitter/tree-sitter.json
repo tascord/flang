@@ -1,0 +1,35 @@
+{
+  "grammars": [
+    {
+      "name": "flang",
+      "camelcase": "Flang",
+      "scope": "source.flang",
+      "file-types": [
+        ".fl"
+      ],
+      "injection-regex": "^flang$"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Flang interpreted language",
+    "authors": [
+      {
+        "name": "Flora Hill",
+        "email": "imflo.pink@gmail.com"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/tascord/flang"
+    }
+  },
+  "bindings": {
+    "c": false,
+    "go": false,
+    "node": false,
+    "python": false,
+    "rust": true,
+    "swift": false
+  }
+}

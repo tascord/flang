@@ -1,9 +1,8 @@
 use {
     super::{scope::Scope, traits::TraitDefinition},
-    crate::project::source::LinkedSpan,
+    crate::{project::source::LinkedSpan, sitter::Span},
     enum_as_inner::EnumAsInner,
     function::{Function, FunctionOutline},
-    pest::Span,
     std::{
         collections::HashMap,
         fmt::{Debug, Display},
@@ -18,7 +17,7 @@ pub mod function;
 pub mod structs;
 
 #[derive(Clone, Debug)]
-pub struct ContextualValue(pub Value, pub LinkedSpan);
+pub struct ContextualValue(pub Value, pub Span);
 impl Deref for ContextualValue {
     type Target = Value;
 
@@ -118,10 +117,10 @@ impl Into<ValueType> for Value {
 }
 
 impl Value {
-    pub fn context(self, s: LinkedSpan) -> ContextualValue { ContextualValue(self, s) }
+    pub fn context(self, s: Span) -> ContextualValue { ContextualValue(self, s) }
 
     pub fn anonymous(self) -> ContextualValue {
-        ContextualValue(self, LinkedSpan(Span::new("", 0, 0).unwrap(), String::new()))
+        ContextualValue(self, Span::anonymous())
     }
 }
 
@@ -183,8 +182,4 @@ impl ValueType {
             v => s.get_structdef(v).map(|v| ValueType::StructInstance((*v).clone())), // TODO: Function
         }
     }
-}
-
-impl Into<LinkedSpan> for ContextualValue {
-    fn into(self) -> LinkedSpan { self.1 }
 }

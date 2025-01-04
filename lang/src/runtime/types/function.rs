@@ -2,8 +2,7 @@ use {
     super::{ContextualValue, Value, ValueType},
     crate::{
         errors::Erroneous,
-        parser::expr::ContextualExpr,
-        runtime::{process, scope::Scope},
+        runtime::{process, scope::Scope}, sitter::expr::ContextualExpr,
     },
     std::{fmt::Debug, sync::Arc},
 };
