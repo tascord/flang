@@ -1,10 +1,15 @@
-use std::{path::Path, sync::Arc};
-
-use expr::{ContextualExpr, Expr};
-use tree_sitter::{Node, Parser};
-use tree_sitter_language::LanguageFn;
-
-use crate::project::{source::SOURCES, Package};
+use {
+    crate::{
+        errors::Erroneous,
+        project::{source::SOURCES, Package},
+    },
+    expr::{ContextualExpr, Expr},
+    itertools::Itertools,
+    op::get_dyadic,
+    std::{path::Path, sync::Arc},
+    tree_sitter::{Node, Parser},
+    tree_sitter_language::LanguageFn,
+};
 
 pub mod expr;
 pub mod op;
@@ -85,7 +90,7 @@ impl Span {
 }
 
 impl ParseContext {
-    pub fn span(self: Arc<Self>, n: Node) -> Span {
+    pub fn span(self: &Arc<Self>, n: Node) -> Span {
         let byte_bounds = (n.start_byte(), n.end_byte());
         let start = (n.start_position().row, n.start_position().column);
         let end = (n.end_position().row, n.end_position().column);
@@ -97,6 +102,14 @@ impl ParseContext {
 
         Span { byte_bounds, start, end, text, source_file: self.source_file.clone() }
     }
+}
+
+pub trait NodeExt {
+    fn text(&self, pc: &Arc<ParseContext>) -> String;
+}
+
+impl NodeExt for Node<'_> {
+    fn text(&self, pc: &Arc<ParseContext>) -> String { pc.clone().span(self.clone()).text }
 }
 
 pub fn parse(path: String) {
@@ -116,16 +129,30 @@ pub fn parse(path: String) {
         if node.is_extra() {
             continue;
         }
-        ast.push(build_ast_from_expr(node, context.clone()).unwrap());
+        ast.push(build_ast_from_expr(node, &context.clone()).unwrap());
     }
 
     dbg!(ast);
 }
 
-fn build_ast_from_expr(node: Node, pc: Arc<ParseContext>) -> crate::errors::Result<ContextualExpr> {
-    dbg!(node);
+fn build_ast_from_expr(node: Node, pc: &Arc<ParseContext>) -> crate::errors::Result<ContextualExpr> {
+    let children = node.children(&mut node.walk()).collect::<Vec<_>>();
+    println!("[Expr] {} => {:#?}", node.grammar_name(), children.iter().map(|c| c.grammar_name()).collect::<Vec<_>>());
+
     Ok::<Expr, crate::errors::Error>(match node.grammar_name() {
         "thing" | "expr" => return build_ast_from_expr(node.child(0).unwrap(), pc),
+        "string" | "boolean" | "number" | "null" | "identifier" => return build_ast_from_term(node, pc),
+
+        "return" => Expr::Return(Box::new(build_ast_from_expr(children[1], pc)?)),
+        "export" => Expr::Export(Box::new(build_ast_from_expr(children[1], &pc.clone())?)),
+
+        "term" | "term_excl" | "terms" => {
+            let terms = children.into_iter().map(|n| build_ast_from_term(n, pc)).collect::<Result<Vec<_>, _>>()?;
+            match terms.len() {
+                1 => terms[0].0.clone(),
+                _ => Expr::Terms(terms),
+            }
+        }
 
         "uses" => {
             // let mut cursor = node.walk();
@@ -148,11 +175,108 @@ fn build_ast_from_expr(node: Node, pc: Arc<ParseContext>) -> crate::errors::Resu
             Expr::Undefined
         }
 
-        "export" => Expr::Export(Box::new(build_ast_from_expr(node.child(0).unwrap(), pc.clone())?)),
+        "fn_decl" => {
+            let (outline, _, block) = children.into_iter().collect_tuple().unwrap();
+            let outline = outline.children(&mut outline.walk()).collect::<Vec<_>>();
+
+            dbg!(block.children(&mut block.walk()).map(|a| a.grammar_name()).collect::<Vec<_>>());
+
+            let mut walk = block.walk();
+            let body = block.children(&mut walk).skip(1);
+            let count = body.len();
+
+            let body = body.take(count - 1).map(|n| build_ast_from_expr(n, pc)).collect::<Result<Vec<_>, _>>()?;
+
+            let return_type = outline.iter().filter(|n| n.grammar_name() == "typed").last().map(|n| n.text(pc));
+
+            let args = outline
+                .iter()
+                .filter(|n| n.grammar_name() == "typed_args")
+                .flat_map(|n| {
+                    n
+                        .children(&mut n.walk())
+                        .filter(|n| n.grammar_name() != "comma")
+                        .map(|n| {
+                            n.children(&mut n.walk())
+                                .map(|n| n.text(pc).strip_prefix(": ").map(|s| s.to_string()).unwrap_or(n.text(pc)))
+                                .collect_tuple()
+                                .unwrap()
+                        })
+                        .collect::<Vec<(String, String)>>()
+                })
+                .collect::<Vec<_>>();
+
+            Expr::FunctionDeclaration { args, return_type, body }
+        }
+
+        "var_decl" => {
+            if children.iter().any(|n| n.grammar_name() == "colon") {
+                let (_, ident, _, typed, expr) = children.into_iter().collect_tuple().unwrap();
+                Expr::Declaration {
+                    ident: ident.text(&pc),
+                    typed: Some(typed.text(&pc)),
+                    expr: Box::new(build_ast_from_expr(expr.clone(), pc)?),
+                }
+            } else {
+                let (_, ident, _, expr) = children.into_iter().collect_tuple().unwrap();
+                Expr::Declaration {
+                    ident: ident.text(&pc),
+                    typed: None,
+                    expr: Box::new(build_ast_from_expr(expr.clone(), pc)?),
+                }
+            }
+        }
+
+        "dyadic" => {
+            let mut inner = children.into_iter().rev();
+            let mut right = build_ast_from_expr(inner.next().unwrap(), pc)?;
+
+            for chunk in &inner.chunks(2) {
+                let (verb, left) = chunk.collect_tuple().unwrap();
+                let left = build_ast_from_expr(left.clone(), pc)?;
+                right = build_dyadic(verb, left, right, pc)?;
+            }
+
+            right.0
+        }
 
         _ => {
             unimplemented!("Unimplemented expr: {:?}", node.grammar_name())
         }
     })
     .map(|n| n.context(pc.span(node)))
+}
+
+fn build_ast_from_term(node: Node<'_>, pc: &Arc<ParseContext>) -> crate::errors::Result<ContextualExpr> {
+    let children = node.children(&mut node.walk()).collect::<Vec<_>>();
+    println!("[Term] {} => {:#?}", node.grammar_name(), children.iter().map(|c| c.grammar_name()).collect::<Vec<_>>());
+
+    Ok::<Expr, crate::errors::Error>(match node.grammar_name() {
+        "term" | "term_excl" => return build_ast_from_expr(children[0], pc),
+        "literal" => return build_ast_from_term(children[0], pc),
+
+        "identifier" => Expr::Ident(node.text(pc)),
+        "null" => Expr::Undefined,
+        "string" => Expr::String(node.text(pc)),
+        
+
+        _ => {
+            unimplemented!("Unimplemented term: {:?}", node.grammar_name())
+        }
+    })
+    .map(|n| n.context(pc.span(node)))
+}
+
+fn build_dyadic(
+    node: Node<'_>,
+    lhs: ContextualExpr,
+    rhs: ContextualExpr,
+    pc: &Arc<ParseContext>,
+) -> crate::errors::Result<ContextualExpr> {
+    Ok(Expr::DyadicOp {
+        verb: get_dyadic(node.text(pc)).ok_or(anyhow::anyhow!("Failed to parse dyad")).rt(pc.span(node))?,
+        lhs: Box::new(lhs),
+        rhs: Box::new(rhs),
+    }
+    .context(pc.span(node)))
 }
