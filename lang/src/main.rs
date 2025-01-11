@@ -1,9 +1,11 @@
 use {
     flang::*,
+    miette::GraphicalReportHandler,
     project::{pack, Package, PACKAGE},
     std::{
         env::{args, current_dir},
         path::PathBuf,
+        process,
     },
 };
 
@@ -21,6 +23,16 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn process() -> anyhow::Result<()> {
-    pack().process()?;
+    let (_, errors) = pack().process()?;
+    if !errors.is_empty() {
+        errors.iter().for_each(|e| {
+            let mut out = String::new();
+            let _ = GraphicalReportHandler::default().render_report(&mut out, &e.clone().as_error("Parsing error"));
+            println!("{}", out);
+        });
+
+        process::exit(1);
+    }
+
     Ok(())
 }

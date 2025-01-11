@@ -1,7 +1,8 @@
 use {
     crate::{
         errors::ErroneousExt,
-        runtime::{self, scope::Scope, types::ContextualValue}, sitter::{self, expr::ContextualExpr},
+        runtime::{self, scope::Scope, types::ContextualValue},
+        sitter::{self, expr::ContextualExpr, Span},
     },
     anyhow::{anyhow, bail, ensure},
     itertools::Itertools,
@@ -218,7 +219,7 @@ impl Package {
         Ok(p)
     }
 
-    pub fn process(&self) -> anyhow::Result<Option<ContextualValue>> {
+    pub fn process(&self) -> anyhow::Result<(Option<ContextualValue>, Vec<Span>)> {
         process_file(Path::new(&self.disk_path).join(self.main.clone()))
     }
 
@@ -271,16 +272,18 @@ pub fn export(path: String) -> Arc<Scope> {
     ex
 }
 
-pub fn process_file(path: PathBuf) -> anyhow::Result<Option<ContextualValue>> {
+pub fn process_file(path: PathBuf) -> anyhow::Result<(Option<ContextualValue>, Vec<Span>)> {
     let path = path.canonicalize().unwrap();
 
     let mut input = String::new();
     OpenOptions::new().read(true).open(path.clone())?.read_to_string(&mut input).unwrap();
     SOURCES.add_source(path.display().to_string(), input);
-    sitter::parse(path.display().to_string());
 
-    // let tree: Vec<ContextualExpr> = pest::parse(path.display().to_string()).unwrappers();
-    // Ok(runtime::process(tree, None, Some(path)).unwrappers())
+    let (tree, errors) = sitter::parse(path.display().to_string());
 
-    todo!()
+    if !errors.is_empty() {
+        return Ok((None, errors));
+    }
+
+    Ok((runtime::process(tree, None, Some(path)).unwrappers(), Vec::new()))
 }

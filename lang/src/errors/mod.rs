@@ -191,3 +191,18 @@ impl<T> ErroneousExt<T> for std::result::Result<T, Error> {
         }
     }
 }
+
+impl Span {
+    #[must_use]
+    pub fn as_error(self, err: &str) -> Error {
+        Error {
+            stage: FlangStage::Runtime,
+            error: err.to_string(),
+            hint: None,
+            fatal: false,
+            code: None,
+            bounds: self.byte_bounds,
+            source: Some(NamedSource::new(self.file_nameish(), SOURCES.get_source(self.source_file).unwrap().to_string())),
+        }
+    }
+}
