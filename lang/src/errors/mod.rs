@@ -190,6 +190,7 @@ impl<T> ErroneousExt<T> for std::result::Result<T, Error> {
             }
         }
     }
+    
 }
 
 impl Span {

@@ -20,10 +20,12 @@ pub struct Scope {
 }
 
 impl Scope {
-    pub fn new() -> Self { Scope::default() }
+    pub fn new() -> Self {
+        Scope::default()
+    }
 
     pub fn child_for_var(&self, v: Value) -> Self {
-        let mut c = Scope::new();
+        let mut c = self.child();
         c.for_var = Some(Arc::new(v.clone()));
 
         // If a struct, add all fields to the scope
@@ -44,7 +46,9 @@ impl Scope {
         c
     }
 
-    pub fn container(&self) -> Option<Arc<Value>> { self.for_var.clone() }
+    pub fn container(&self) -> Option<Arc<Value>> {
+        self.for_var.clone()
+    }
 
     pub fn child(&self) -> Self {
         let mut c = Scope::new();
@@ -134,11 +138,17 @@ impl Scope {
         Ok(())
     }
 
-    pub fn get(&self, var: &str) -> Option<Arc<Value>> { self.variables.read().unwrap().get(var).cloned() }
+    pub fn get(&self, var: &str) -> Option<Arc<Value>> {
+        self.variables.read().unwrap().get(var).cloned()
+    }
 
-    pub fn use_export(&self, s: Arc<Scope>) { self.export.write().unwrap().replace(s); }
+    pub fn use_export(&self, s: Arc<Scope>) {
+        self.export.write().unwrap().replace(s);
+    }
 
-    pub fn clear_export(&self) { self.export.write().unwrap().take(); }
+    pub fn clear_export(&self) {
+        self.export.write().unwrap().take();
+    }
 
     pub fn absorb(&self, s: Arc<Scope>) {
         self.structs.write().unwrap().extend(s.structs.read().unwrap().clone().into_iter());
@@ -150,5 +160,14 @@ impl Scope {
         self.structs.write().unwrap().extend(s.structs.read().unwrap().clone().into_iter().filter(|s| s.0 == name));
         self.variables.write().unwrap().extend(s.variables.read().unwrap().clone().into_iter().filter(|v| v.0 == name));
         self.traits.write().unwrap().extend(s.traits.read().unwrap().clone().into_iter().filter(|t| t.0.name == name));
+    }
+
+    pub fn list_var(&self) -> Vec<(String, ValueType)> {
+        self.variables
+            .read()
+            .unwrap()
+            .iter()
+            .map(|v| (v.0.clone(), Into::<ValueType>::into((*v.1.clone()).clone())))
+            .collect()
     }
 }

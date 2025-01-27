@@ -1,14 +1,16 @@
 use {
     crate::{
         errors::Erroneous,
-       
-        project::export, sitter::{expr::{self, ContextualExpr}, op::Dyadic},
+        project::export,
+        sitter::{
+            expr::{self, ContextualExpr},
+            op::Dyadic,
+        },
     },
     _builtins::default_impl,
-    anyhow::anyhow,
+    anyhow::{anyhow, bail},
     itertools::Itertools,
     scope::Scope,
-    std::path::PathBuf,
     types::{
         function::{BasicFunction, Function, FunctionOutline},
         ContextualValue, Value, ValueType,
@@ -23,7 +25,7 @@ pub mod types;
 pub fn process(
     tree: Vec<ContextualExpr>,
     s: Option<&Scope>,
-    p: Option<PathBuf>,
+    p: Option<String>,
 ) -> crate::errors::Result<Option<ContextualValue>> {
     let mut result = Value::Undefined.anonymous();
 
@@ -40,7 +42,8 @@ pub fn process(
     Ok(Some(result))
 }
 
-pub fn step(node: ContextualExpr, s: &Scope, p: &Option<PathBuf>) -> Result<Option<ContextualValue>, crate::errors::Error> {
+pub fn step(node: ContextualExpr, s: &Scope, p: &Option<String>) -> Result<Option<ContextualValue>, crate::errors::Error> {
+    // println!("[Step] :: {}", format!("{:?}", &node.0).split(" ").next().unwrap());
     Ok(match node.0 {
         expr::Expr::Number(v) => Some(Value::from(v).context(node.1.clone())),
         expr::Expr::Boolean(v) => Some(Value::from(v).context(node.1.clone())),
@@ -71,11 +74,19 @@ pub fn step(node: ContextualExpr, s: &Scope, p: &Option<PathBuf>) -> Result<Opti
         }
 
         expr::Expr::Index(target, idx) => {
-            let mut scope = s.child_for_var(step(*target, s, p)?.unwrap().0);
+            let mut scope = s.child_for_var(step(*target.clone(), s, p)?.unwrap().0);
             let right = idx
+                .clone()
                 .into_iter()
-                .fold(anyhow::Result::<ContextualValue>::Ok(Value::Undefined.anonymous()), |_, b| {
-                    let right = step(b.clone(), &scope, p)?.ok_or(anyhow!("Index {:?} doesnt exist", b))?;
+                .enumerate()
+                .fold(anyhow::Result::<ContextualValue>::Ok(Value::Undefined.anonymous()), |_, (index, b)| {
+                    let right = step(b.clone(), &scope, p)?;
+                    if right.is_none() && index != idx.len() - 1 {
+                        bail!("Index {:?} does not exist on item {:?}", b.1.text, target.1.text);
+                    }
+
+                    let right = right.unwrap_or(Value::Undefined.context(b.1));
+
                     scope = s.child_for_var(right.0.clone());
                     Ok(right)
                 })
@@ -162,7 +173,7 @@ pub fn step(node: ContextualExpr, s: &Scope, p: &Option<PathBuf>) -> Result<Opti
 
         expr::Expr::Export(expr) => {
             s.use_export(export(
-                p.clone().ok_or(anyhow!("Can't export in a non-path based environment")).rta()?.display().to_string(),
+                p.clone().ok_or(anyhow!("Can't export in a non-path based environment")).rta()?.to_string(),
             ));
 
             let value = step(*expr, s, p)?.unwrap_or(Value::Undefined.anonymous());

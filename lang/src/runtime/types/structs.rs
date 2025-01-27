@@ -1,11 +1,11 @@
 use std::{collections::HashMap, hash::Hash};
 
-use super::Value;
+use super::ValueType;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct StructDefinition {
     pub name: String,
-    fields: HashMap<String, Value>,
+    pub fields: HashMap<String, ValueType>,
 }
 
 impl Hash for StructDefinition {

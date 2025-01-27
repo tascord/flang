@@ -211,12 +211,18 @@ fn build_ast_from_expr(node: Node, pc: &Arc<ParseContext>) -> crate::errors::Res
         }
 
         "fn_call" => {
-            let (ident, _, args, _) = children.into_iter().collect_tuple().unwrap();
-            let args: Vec<ContextualExpr> = args
-                .children(&mut args.walk())
-                .filter(|n| n.grammar_name() != "comma".to_string())
-                .map(|n| build_ast_from_expr(n, pc))
-                .collect::<Result<Vec<_>, _>>()?;
+            let mut children = children.into_iter();
+            let ident = children.next().unwrap();
+            let args = children.filter(|c| c.grammar_name() != "lparan" && c.grammar_name() != "rparen").next();
+
+            let args: Vec<ContextualExpr> = match args {
+                Some(args) => args
+                    .children(&mut args.walk())
+                    .filter(|n| n.grammar_name() != "comma".to_string())
+                    .map(|n| build_ast_from_expr(n, pc))
+                    .collect::<Result<Vec<_>, _>>()?,
+                None => Vec::new(),
+            };
 
             Expr::FunctionCall(ident.text(pc), args)
         }
@@ -250,6 +256,14 @@ fn build_ast_from_expr(node: Node, pc: &Arc<ParseContext>) -> crate::errors::Res
             }
 
             right.0
+        }
+
+        "index" => {
+            let mut body = children.into_iter().filter(|c| c.grammar_name() != ".");
+            let item = build_ast_from_expr(body.next().unwrap(), pc)?;
+            let rest = body.map(|n| build_ast_from_expr(n, pc)).collect::<Result<Vec<_>, _>>()?;
+
+            Expr::Index(Box::new(item), rest)
         }
 
         _ => {

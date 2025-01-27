@@ -1,6 +1,6 @@
 use {
     super::{scope::Scope, traits::TraitDefinition},
-    crate::{project::source::LinkedSpan, sitter::Span},
+    crate::sitter::Span,
     enum_as_inner::EnumAsInner,
     function::{Function, FunctionOutline},
     std::{
@@ -21,7 +21,9 @@ pub struct ContextualValue(pub Value, pub Span);
 impl Deref for ContextualValue {
     type Target = Value;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Clone, EnumAsInner, Debug)]
@@ -86,19 +88,27 @@ impl PartialEq for Value {
 impl Eq for Value {}
 
 impl From<f64> for Value {
-    fn from(value: f64) -> Self { Self::Number(value) }
+    fn from(value: f64) -> Self {
+        Self::Number(value)
+    }
 }
 
 impl From<String> for Value {
-    fn from(value: String) -> Self { Self::String(value) }
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
 }
 
 impl From<bool> for Value {
-    fn from(value: bool) -> Self { Self::Boolean(value) }
+    fn from(value: bool) -> Self {
+        Self::Boolean(value)
+    }
 }
 
 impl<T: Into<Value>> From<Option<T>> for Value {
-    fn from(value: Option<T>) -> Self { value.map(|v| v.into()).unwrap_or(Value::Undefined) }
+    fn from(value: Option<T>) -> Self {
+        value.map(|v| v.into()).unwrap_or(Value::Undefined)
+    }
 }
 
 impl Into<ValueType> for Value {
@@ -117,7 +127,9 @@ impl Into<ValueType> for Value {
 }
 
 impl Value {
-    pub fn context(self, s: Span) -> ContextualValue { ContextualValue(self, s) }
+    pub fn context(self, s: Span) -> ContextualValue {
+        ContextualValue(self, s)
+    }
 
     pub fn anonymous(self) -> ContextualValue {
         ContextualValue(self, Span::anonymous())

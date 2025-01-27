@@ -1,25 +1,38 @@
 use {
+    clap::Parser,
     flang::*,
     miette::GraphicalReportHandler,
     project::{pack, Package, PACKAGE},
-    std::{
-        env::{args, current_dir},
-        path::PathBuf,
-        process,
-    },
+    repl::repl,
+    std::{path::PathBuf, process},
 };
 
-fn main() -> anyhow::Result<()> {
-    let target =
-        PathBuf::from(args().skip(1).find(|a| !a.starts_with("--")).unwrap_or(current_dir().unwrap().display().to_string()));
-    let package = if target.is_dir() {
-        Package::from_folder(target)?
-    } else {
-        Package::from_folder(target.parent().unwrap().to_path_buf())?
-    };
+mod repl;
 
-    PACKAGE.set((package, None).into()).unwrap();
-    process()
+#[derive(Parser, Debug)]
+#[command(version = "1.0.0", about = "Interpreter for flang")]
+struct Args {
+    #[arg(help = "Path to project root (contains manifold)")]
+    project: Option<String>,
+}
+
+fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+
+    if let Some(target) = args.project {
+        let target = PathBuf::from(target);
+        let package = if target.is_dir() {
+            Package::from_folder(target)?
+        } else {
+            Package::from_folder(target.parent().unwrap().to_path_buf())?
+        };
+        PACKAGE.set((package, None).into()).unwrap();
+
+        return process();
+    }
+
+    repl();
+    Ok(())
 }
 
 fn process() -> anyhow::Result<()> {

@@ -285,5 +285,5 @@ pub fn process_file(path: PathBuf) -> anyhow::Result<(Option<ContextualValue>, V
         return Ok((None, errors));
     }
 
-    Ok((runtime::process(tree, None, Some(path)).unwrappers(), Vec::new()))
+    Ok((runtime::process(tree, None, Some(path.display().to_string())).unwrappers(), Vec::new()))
 }

@@ -112,10 +112,10 @@ pub fn default_impl(s: &Scope) {
                     let v = match &*s.get("self").unwrap() {
                         Value::Number(v) => v.to_string().yellow().to_string(),
                         Value::Boolean(v) => v.to_string().green().to_string(),
-                        Value::String(v) => format!("\"{v}\"").cyan().to_string(),
+                        Value::String(v) => format!("{v}").cyan().to_string(),
                         Value::StructInstance(struct_definition, hash_map) => format!(
                             "{name} {left} {body} {right}",
-                            name = struct_definition.name,
+                            name = struct_definition.name.bold(),
                             left = "{".blue().to_string(), right = "}".blue().to_string(),
                             body = hash_map.into_iter().map(|(k, v)| {
                                 let binding = s.get_trait_for(v.clone(), "ToPretty").unwrap().get_function("to_pretty").unwrap().call(s, vec![v.clone().anonymous()]).unwrap().unwrap();
